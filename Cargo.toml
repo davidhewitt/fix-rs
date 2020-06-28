@@ -10,6 +10,7 @@ readme = "README.md"
 keywords = ["fix", "protocol", "finance", "trading", "library"]
 categories = ["network-programming", ]
 license = "MIT/Apache-2.0"
+edition = "2018"
 
 [features]
 default = []

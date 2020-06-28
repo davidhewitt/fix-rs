@@ -17,19 +17,19 @@ use std::iter::FromIterator;
 use std::mem;
 use std::str::FromStr;
 
-use constant::{FIX_4_0_BEGIN_STRING,FIX_4_1_BEGIN_STRING,FIX_4_2_BEGIN_STRING,FIX_4_3_BEGIN_STRING,FIX_4_4_BEGIN_STRING,FIXT_1_1_BEGIN_STRING,TAG_END,VALUE_END};
-use dictionary::messages::{Logon,NullMessage};
-use dictionary::fields::{ApplVerID,SenderCompID,TargetCompID};
-use dictionary::field_types::other::DefaultApplVerIDFieldType;
-use field::Field;
-use field_tag::FieldTag;
-use field_type::FieldType;
-use fix_version::FIXVersion;
-use fixt::message::{BuildFIXTMessage,FIXTMessage};
-use hash::BuildFieldHasher;
-use message::{BuildMessage,FieldHashMap,FieldHashSet,Meta,Message,SetValueError};
-use message_version::MessageVersion;
-use rule::Rule;
+use crate::constant::{FIX_4_0_BEGIN_STRING,FIX_4_1_BEGIN_STRING,FIX_4_2_BEGIN_STRING,FIX_4_3_BEGIN_STRING,FIX_4_4_BEGIN_STRING,FIXT_1_1_BEGIN_STRING,TAG_END,VALUE_END};
+use crate::dictionary::messages::{Logon,NullMessage};
+use crate::dictionary::fields::{ApplVerID,SenderCompID,TargetCompID};
+use crate::dictionary::field_types::other::DefaultApplVerIDFieldType;
+use crate::field::Field;
+use crate::field_tag::FieldTag;
+use crate::field_type::FieldType;
+use crate::fix_version::FIXVersion;
+use crate::fixt::message::{BuildFIXTMessage,FIXTMessage};
+use crate::hash::BuildFieldHasher;
+use crate::message::{BuildMessage,FieldHashMap,FieldHashSet,Meta,Message,SetValueError};
+use crate::message_version::MessageVersion;
+use crate::rule::Rule;
 
 //TODO: Support configuration settings for things like MAX_VALUE_LENGTH, MAX_BODY_LENGTH,
 //      MAX_TAG_LENGTH, the size of a "Length" and other types.

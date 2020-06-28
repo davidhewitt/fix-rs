@@ -30,7 +30,7 @@ use std::time::Duration;
 
 #[macro_use]
 mod common;
-use common::{CLIENT_SENDER_COMP_ID,CLIENT_TARGET_COMP_ID,SERVER_SENDER_COMP_ID,SERVER_TARGET_COMP_ID,TestStream,new_logon_message,recv_bytes_with_timeout,send_message};
+use crate::common::{CLIENT_SENDER_COMP_ID,CLIENT_TARGET_COMP_ID,SERVER_SENDER_COMP_ID,SERVER_TARGET_COMP_ID,TestStream,new_logon_message,recv_bytes_with_timeout,send_message};
 use fix_rs::dictionary::standard_msg_types;
 use fix_rs::dictionary::field_types::generic::{CharFieldType,NoneFieldType,StringFieldType};
 use fix_rs::dictionary::field_types::other::{BusinessRejectReason,OrdType,SecurityIDSource,SessionRejectReason,Side};

@@ -15,13 +15,13 @@ use std::mem;
 use std::io::Write;
 use std::ptr;
 
-use byte_buffer::ByteBuffer;
-use constant::VALUE_END;
-use field_tag::FieldTag;
-use fix_version::FIXVersion;
-use hash::BuildFieldHasher;
-use message_version::MessageVersion;
-use rule::Rule;
+use crate::byte_buffer::ByteBuffer;
+use crate::constant::VALUE_END;
+use crate::field_tag::FieldTag;
+use crate::fix_version::FIXVersion;
+use crate::hash::BuildFieldHasher;
+use crate::message_version::MessageVersion;
+use crate::rule::Rule;
 
 pub type FieldHashMap = HashMap<FieldTag,Rule,BuildFieldHasher>;
 pub type FieldHashSet = HashSet<FieldTag,BuildFieldHasher>;

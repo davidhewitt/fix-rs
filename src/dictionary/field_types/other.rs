@@ -14,10 +14,10 @@
 use std::io::Write;
 use std::str::FromStr;
 
-use field_type::FieldType;
-use fix_version::FIXVersion;
-use message::SetValueError;
-use message_version::MessageVersion;
+use crate::field_type::FieldType;
+use crate::fix_version::FIXVersion;
+use crate::message::SetValueError;
+use crate::message_version::MessageVersion;
 
 //Enumerated Fields (Sorted Alphabetically)
 

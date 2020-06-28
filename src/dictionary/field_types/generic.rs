@@ -18,12 +18,12 @@ use std::marker::PhantomData;
 use std::io::Write;
 use std::str::FromStr;
 
-use constant::VALUE_END;
-use field_type::FieldType;
-use fix_version::FIXVersion;
-use message::{Message,MessageBuildable,SetValueError};
-use message_version::MessageVersion;
-use rule::Rule;
+use crate::constant::VALUE_END;
+use crate::field_type::FieldType;
+use crate::fix_version::FIXVersion;
+use crate::message::{Message,MessageBuildable,SetValueError};
+use crate::message_version::MessageVersion;
+use crate::rule::Rule;
 
 //Helper function(s)
 

@@ -11,12 +11,12 @@
 
 use std::fmt;
 
-use dictionary::fields::{MsgSeqNum,OrigSendingTime,SenderCompID,SendingTime,TargetCompID};
-use field::Field;
-use field_type::FieldType;
-use fix_version::FIXVersion;
-use message::{BuildMessage,Message};
-use message_version::MessageVersion;
+use crate::dictionary::fields::{MsgSeqNum,OrigSendingTime,SenderCompID,SendingTime,TargetCompID};
+use crate::field::Field;
+use crate::field_type::FieldType;
+use crate::fix_version::FIXVersion;
+use crate::message::{BuildMessage,Message};
+use crate::message_version::MessageVersion;
 
 pub trait BuildFIXTMessage: BuildMessage {
     fn new_into_box(&self) -> Box<dyn BuildFIXTMessage + Send>;

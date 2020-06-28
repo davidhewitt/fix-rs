@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool,Ordering};
 
 #[macro_use]
 mod common;
-use common::{SERVER_SENDER_COMP_ID,SERVER_TARGET_COMP_ID,TestStream,new_logon_message};
+use crate::common::{SERVER_SENDER_COMP_ID,SERVER_TARGET_COMP_ID,TestStream,new_logon_message};
 use fix_rs::byte_buffer::ByteBuffer;
 use fix_rs::dictionary::field_types::other::{MsgDirection,SessionRejectReason};
 use fix_rs::dictionary::fields::{MsgTypeGrp,SenderCompID,TargetCompID,Text};

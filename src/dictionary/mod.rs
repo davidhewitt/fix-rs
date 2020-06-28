@@ -15,7 +15,7 @@ pub mod messages;
 
 use std::collections::{HashMap,HashSet};
 
-use fixt::message::BuildFIXTMessage;
+use crate::fixt::message::BuildFIXTMessage;
 
 #[macro_export]
 macro_rules! define_dictionary {

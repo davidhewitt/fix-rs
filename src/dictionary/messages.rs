@@ -11,15 +11,15 @@
 
 use std::any::Any;
 
-use dictionary::fields::*;
-use field::Field;
-use field_tag::{self,FieldTag};
-use field_type::FieldType;
-use fix_version::FIXVersion;
-use fixt;
-use fixt::message::FIXTMessage;
-use message::{self, REQUIRED,NOT_REQUIRED,Message,Meta,SetValueError};
-use message_version::{self, MessageVersion};
+use crate::dictionary::fields::*;
+use crate::field::Field;
+use crate::field_tag::{self,FieldTag};
+use crate::field_type::FieldType;
+use crate::fix_version::FIXVersion;
+use crate::fixt;
+use crate::fixt::message::FIXTMessage;
+use crate::message::{self, REQUIRED,NOT_REQUIRED,Message,Meta,SetValueError};
+use crate::message_version::{self, MessageVersion};
 
 pub struct NullMessage {
 }

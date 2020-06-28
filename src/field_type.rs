@@ -9,10 +9,10 @@
 // at your option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use fix_version::FIXVersion;
-use message::{Message,SetValueError};
-use message_version::MessageVersion;
-use rule::Rule;
+use crate::fix_version::FIXVersion;
+use crate::message::{Message,SetValueError};
+use crate::message_version::MessageVersion;
+use crate::rule::Rule;
 
 pub trait FieldType {
     type Type;

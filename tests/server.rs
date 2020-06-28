@@ -22,7 +22,7 @@ use std::time::Duration;
 
 #[macro_use]
 mod common;
-use common::{CLIENT_SENDER_COMP_ID,CLIENT_TARGET_COMP_ID,TestStream,new_logon_message};
+use crate::common::{CLIENT_SENDER_COMP_ID,CLIENT_TARGET_COMP_ID,TestStream,new_logon_message};
 use fix_rs::dictionary::field_types::other::{MsgDirection,SessionRejectReason};
 use fix_rs::dictionary::fields::{MsgTypeGrp,Text};
 use fix_rs::dictionary::messages::{Heartbeat,Logon,Logout,Reject,TestRequest};
