@@ -19,16 +19,16 @@ use message::{BuildMessage,Message};
 use message_version::MessageVersion;
 
 pub trait BuildFIXTMessage: BuildMessage {
-    fn new_into_box(&self) -> Box<BuildFIXTMessage + Send>;
-    fn build(&self) -> Box<FIXTMessage + Send>;
+    fn new_into_box(&self) -> Box<dyn BuildFIXTMessage + Send>;
+    fn build(&self) -> Box<dyn FIXTMessage + Send>;
 }
 
 pub trait FIXTMessageBuildable {
-    fn builder(&self) -> Box<BuildFIXTMessage + Send>;
+    fn builder(&self) -> Box<dyn BuildFIXTMessage + Send>;
 }
 
 pub trait FIXTMessage: Message {
-    fn new_into_box(&self) -> Box<FIXTMessage + Send>;
+    fn new_into_box(&self) -> Box<dyn FIXTMessage + Send>;
     fn msg_type(&self) -> &'static [u8];
     fn msg_seq_num(&self) -> <<MsgSeqNum as Field>::Type as FieldType>::Type;
     fn sender_comp_id(&self) -> &<<SenderCompID as Field>::Type as FieldType>::Type;
@@ -44,13 +44,13 @@ pub trait FIXTMessage: Message {
                                  target_comp_id: <<TargetCompID as Field>::Type as FieldType>::Type);
 }
 
-impl fmt::Debug for FIXTMessage {
+impl fmt::Debug for dyn FIXTMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"{}",Message::debug(self,FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2))
     }
 }
 
-impl fmt::Debug for FIXTMessage + Send {
+impl fmt::Debug for dyn FIXTMessage + Send {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,"{}",Message::debug(self,FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2))
     }
@@ -122,7 +122,7 @@ macro_rules! define_fixt_message {
         }
 
         impl $crate::fixt::message::FIXTMessage for $message_name {
-            fn new_into_box(&self) -> Box<$crate::fixt::message::FIXTMessage + Send> {
+            fn new_into_box(&self) -> Box<dyn $crate::fixt::message::FIXTMessage + Send> {
                 Box::new($message_name::new())
             }
 
@@ -176,4 +176,3 @@ macro_rules! define_fixt_message {
         }
     };
 }
-

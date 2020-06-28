@@ -117,10 +117,10 @@ pub enum EngineEvent {
     SessionEstablished(Connection), //Connection completed logon process successfully.
     ListenerFailed(Listener,io::Error), //Could not setup listener.
     ListenerAcceptFailed(Listener,io::Error), //Could not accept a connection with listener.
-    MessageReceived(Connection,Box<FIXTMessage + Send>), //New valid message was received.
+    MessageReceived(Connection,Box<dyn FIXTMessage + Send>), //New valid message was received.
     MessageReceivedGarbled(Connection,ParseError), //New message could not be parsed correctly. (If not garbled (FIXT 1.1, page 40), a Reject will be issued first)
-    MessageReceivedDuplicate(Connection,Box<FIXTMessage + Send>), //Message with MsgSeqNum already seen was received.
-    MessageRejected(Connection,Box<FIXTMessage + Send>), //New message breaks session rules and was rejected.
+    MessageReceivedDuplicate(Connection,Box<dyn FIXTMessage + Send>), //Message with MsgSeqNum already seen was received.
+    MessageRejected(Connection,Box<dyn FIXTMessage + Send>), //New message breaks session rules and was rejected.
     ResendRequested(Connection,Range<u64>), //Range of messages by MsgSeqNum that are requested to be resent. [Range::start,Range::end)
     SequenceResetResetHasNoEffect(Connection),
     SequenceResetResetInThePast(Connection),
@@ -135,7 +135,7 @@ impl fmt::Debug for EngineEvent {
             EngineEvent::ConnectionTerminated(connection,ref reason) => write!(f,"EngineEvent::ConnectionTerminated({:?},{:?})",connection,reason),
             EngineEvent::ConnectionDropped(connection,addr) => write!(f,"EngineEvent::ConnectionDropped({:?},{:?})",connection,addr),
             EngineEvent::ConnectionAccepted(listener,connection,addr) => write!(f,"EngineEvent::ConnectionAccepted({:?},{:?},{:?})",listener,connection,addr),
-            EngineEvent::ConnectionLoggingOn(listener,connection,ref message) => write!(f,"EngineEvent::ConnectionLoggingOn({:?},{:?},{:?})",listener,connection,&**message as &FIXTMessage),
+            EngineEvent::ConnectionLoggingOn(listener,connection,ref message) => write!(f,"EngineEvent::ConnectionLoggingOn({:?},{:?},{:?})",listener,connection,&**message as &dyn FIXTMessage),
             EngineEvent::SessionEstablished(connection) => write!(f,"EngineEvent::SessionEstablished({:?})",connection),
             EngineEvent::ListenerFailed(listener,ref error) => write!(f,"EngineEvent::ListenerFailed({:?},{:?})",listener,error),
             EngineEvent::ListenerAcceptFailed(listener,ref error) => write!(f,"EngineEvent::ListenerAcceptFailed({:?},{:?})",listener,error),
@@ -152,7 +152,7 @@ impl fmt::Debug for EngineEvent {
 }
 
 pub enum ResendResponse {
-    Message(Option<MessageVersion>,Box<FIXTMessage + Send>),
+    Message(Option<MessageVersion>,Box<dyn FIXTMessage + Send>),
     Gap(Range<u64>),
 }
 
@@ -173,15 +173,15 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>,
+    pub fn new(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>,
                max_message_size: u64) -> Result<Engine,io::Error> {
-        let engine_poll = try!(Poll::new());
+        let engine_poll = Poll::new()?;
         let (thread_to_engine_tx,thread_to_engine_rx) = channel::<EngineEvent>();
-        try!(engine_poll.register(&thread_to_engine_rx,ENGINE_EVENT_TOKEN,Ready::readable(),PollOpt::level()));
+        engine_poll.register(&thread_to_engine_rx,ENGINE_EVENT_TOKEN,Ready::readable(),PollOpt::level())?;
 
-        let poll = try!(Poll::new());
+        let poll = Poll::new()?;
         let (engine_to_thread_tx,engine_to_thread_rx) = channel::<InternalEngineToThreadEvent>();
-        try!(poll.register(&engine_to_thread_rx,INTERNAL_ENGINE_EVENT_TOKEN,Ready::readable(),PollOpt::level()));
+        poll.register(&engine_to_thread_rx,INTERNAL_ENGINE_EVENT_TOKEN,Ready::readable(),PollOpt::level())?;
 
         let token_generator = Arc::new(Mutex::new(TokenGenerator::new(BASE_CONNECTION_TOKEN.0,Some(CONNECTION_COUNT_MAX - BASE_CONNECTION_TOKEN.0))));
 
@@ -236,7 +236,7 @@ impl Engine {
             Some(address) => address,
             None => return Ok(None),
         };
-        let listener = try!(TcpListener::bind(&address));
+        let listener = TcpListener::bind(&address)?;
 
         let token = match self.token_generator.lock().unwrap().create() {
             Some(token) => token,
@@ -254,11 +254,11 @@ impl Engine {
         self.send_message_box(connection,message);
     }
 
-    pub fn send_message_box(&mut self,connection: Connection,message: Box<FIXTMessage + Send>) {
+    pub fn send_message_box(&mut self,connection: Connection,message: Box<dyn FIXTMessage + Send>) {
         self.send_message_box_with_message_version(connection,None,message);
     }
 
-    pub fn send_message_box_with_message_version<MV: Into<Option<MessageVersion>>>(&mut self,connection: Connection,message_version: MV,message: Box<FIXTMessage + Send>) {
+    pub fn send_message_box_with_message_version<MV: Into<Option<MessageVersion>>>(&mut self,connection: Connection,message_version: MV,message: Box<dyn FIXTMessage + Send>) {
         self.tx.send(InternalEngineToThreadEvent::SendMessage(Token(connection.0),message_version.into(),message)).unwrap();
     }
 
@@ -355,4 +355,3 @@ impl Drop for Engine {
         let _ = thread_handle.unwrap().join();
     }
 }
-

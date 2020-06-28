@@ -29,7 +29,7 @@ use std::time::Duration;
 
 use byte_buffer::ByteBuffer;
 use dictionary::{CloneDictionary,administrative_msg_types,standard_msg_types};
-use dictionary::field_types::generic::UTCTimestampFieldType;
+use dictionary::field_types::generic::UtcTimestampFieldType;
 use dictionary::field_types::other::{BusinessRejectReason,MsgDirection,SessionRejectReason};
 use dictionary::fields::{ApplVerID,MsgSeqNum,SenderCompID,TargetCompID,OrigSendingTime};
 use dictionary::messages::{Logon,Logout,ResendRequest,TestRequest,Heartbeat,SequenceReset,Reject,BusinessMessageReject};
@@ -223,7 +223,7 @@ enum TimeoutType {
 type MsgSeqNumType = <<MsgSeqNum as Field>::Type as FieldType>::Type;
 
 struct OutboundMessage {
-    message: Box<FIXTMessage + Send>,
+    message: Box<dyn FIXTMessage + Send>,
     message_version: Option<MessageVersion>,
     auto_msg_seq_num: bool,
 }
@@ -245,7 +245,7 @@ impl OutboundMessage {
         }
     }
 
-    fn from_box(message: Box<FIXTMessage + Send>) -> Self {
+    fn from_box(message: Box<dyn FIXTMessage + Send>) -> Self {
         OutboundMessage {
             message: message,
             message_version: None,
@@ -295,7 +295,7 @@ fn reset_inbound_timeout(timer: &mut Timer<(TimeoutType,Token)>,inbound_timeout:
 pub enum InternalEngineToThreadEvent {
     NewConnection(Token,FIXVersion,MessageVersion,<<SenderCompID as Field>::Type as FieldType>::Type,<<TargetCompID as Field>::Type as FieldType>::Type,SocketAddr),
     NewListener(Token,<<SenderCompID as Field>::Type as FieldType>::Type,TcpListener),
-    SendMessage(Token,Option<MessageVersion>,Box<FIXTMessage + Send>),
+    SendMessage(Token,Option<MessageVersion>,Box<dyn FIXTMessage + Send>),
     ResendMessages(Token,Vec<ResendResponse>),
     ApproveNewConnection(Connection,Box<Logon>,u64),
     RejectNewConnection(Connection,Option<Vec<u8>>),
@@ -317,7 +317,7 @@ enum ConnectionEventError {
 }
 
 enum ConnectionReadMessage {
-    Message(Box<FIXTMessage + Send>),
+    Message(Box<dyn FIXTMessage + Send>),
     Error(ParseError),
 }
 
@@ -353,7 +353,7 @@ struct InternalConnection {
 }
 
 impl InternalConnection {
-    fn new(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>,
+    fn new(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>,
            max_message_size: u64,
            fix_version: FIXVersion,
            default_message_version: MessageVersion,
@@ -442,7 +442,7 @@ impl InternalConnection {
                 message.message.setup_fixt_session_header(
                     if message.auto_msg_seq_num {
                         let result = Some(self.outbound_msg_seq_num);
-                        try!(self.increment_outbound_msg_seq_num());
+                        self.increment_outbound_msg_seq_num()?;
                         result
                     } else { None },
                     self.sender_comp_id.clone(),
@@ -497,7 +497,7 @@ impl InternalConnection {
         Ok(())
     }
 
-    fn read(&mut self,timer: &mut Timer<(TimeoutType,Token)>) -> Result<(Vec<ConnectionReadMessage>),::std::io::Error> {
+    fn read(&mut self,timer: &mut Timer<(TimeoutType,Token)>) -> Result<Vec<ConnectionReadMessage>,::std::io::Error> {
         fn parse_bytes(connection: &mut InternalConnection,messages: &mut Vec<ConnectionReadMessage>) -> bool {
             while !connection.inbound_buffer.is_empty() {
                 let (bytes_parsed,result) = connection.parser.parse(connection.inbound_buffer.bytes());
@@ -719,7 +719,7 @@ struct InternalThread {
     token_generator: Arc<Mutex<TokenGenerator>>,
     tx: Sender<EngineEvent>,
     rx: Receiver<InternalEngineToThreadEvent>,
-    message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>,
+    message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>,
     max_message_size: u64,
     connections: HashMap<Token,InternalConnection>,
     listeners: HashMap<Token,InternalListener>,
@@ -976,8 +976,8 @@ impl InternalThread {
 
                         //Use current time as TestReqID as recommended. This might not exactly
                         //match the SendingTime field depending on when it gets sent though.
-                        let now_time = UTCTimestampFieldType::new_now();
-                        UTCTimestampFieldType::read(&now_time,FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2,&mut test_request.test_req_id);
+                        let now_time = UtcTimestampFieldType::new_now();
+                        UtcTimestampFieldType::read(&now_time,FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2,&mut test_request.test_req_id);
 
                         connection_entry.get_mut().outbound_messages.push(OutboundMessage::from(test_request));
 
@@ -1171,11 +1171,11 @@ impl InternalThread {
         Ok(())
     }
 
-    fn on_network_message(connection: &mut InternalConnection,mut message: Box<FIXTMessage + Send>,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Result<(),ConnectionTerminatedReason>  {
+    fn on_network_message(connection: &mut InternalConnection,mut message: Box<dyn FIXTMessage + Send>,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Result<(),ConnectionTerminatedReason>  {
         //Perform book keeping needed to maintain the FIX connection and then pass off the message
         //to the engine.
 
-        fn if_on_resend_request(connection: &mut InternalConnection,message: Box<FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Option<Box<FIXTMessage + Send>> {
+        fn if_on_resend_request(connection: &mut InternalConnection,message: Box<dyn FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Option<Box<dyn FIXTMessage + Send>> {
             let mut rejected = false;
 
             if let Some(resend_request) = message.as_any().downcast_ref::<ResendRequest>() {
@@ -1197,7 +1197,7 @@ impl InternalThread {
                     //MsgSeqNum. BUT, it apparently was a common pattern in older versions of the
                     //protocol to set EndSeqNo to a really high number (ie. 999999) to mean the same
                     //thing as setting it to 0 now.
-                    let end_seq_no = if resend_request.end_seq_no > connection.outbound_msg_seq_num || resend_request.end_seq_no == 0 {
+                    let _end_seq_no = if resend_request.end_seq_no > connection.outbound_msg_seq_num || resend_request.end_seq_no == 0 {
                         connection.outbound_msg_seq_num - 1
                     }
                     else {
@@ -1255,7 +1255,7 @@ impl InternalThread {
             }
         }
 
-        fn reject_for_sending_time_accuracy(connection: &mut InternalConnection,message: Box<FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>) {
+        fn reject_for_sending_time_accuracy(connection: &mut InternalConnection,message: Box<dyn FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>) {
             let mut reject = Reject::new();
             reject.ref_seq_num = msg_seq_num;
             reject.session_reject_reason = Some(SessionRejectReason::SendingTimeAccuracyProblem);
@@ -1265,7 +1265,7 @@ impl InternalThread {
             tx.send(EngineEvent::MessageRejected(connection.as_connection(),message)).unwrap();
         }
 
-        fn on_greater_than_expected_msg_seq_num(connection: &mut InternalConnection,mut message: Box<FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Option<Box<FIXTMessage + Send>> {
+        fn on_greater_than_expected_msg_seq_num(connection: &mut InternalConnection,mut message: Box<dyn FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Option<Box<dyn FIXTMessage + Send>> {
             //FIXT v1.1, page 13: We should reply to ResendRequest first when MsgSeqNum is higher
             //than expected. Afterwards, we should send our own ResendRequest.
             message = match if_on_resend_request(connection,message,msg_seq_num,tx,timer) {
@@ -1294,7 +1294,7 @@ impl InternalThread {
             //page 42 for details.
             //Start by figuring out if Logout message is a response to our Logout or the other side
             //is initiating a logout.
-            if let Some(logout) = message.as_any().downcast_ref::<Logout>() {
+            if message.as_any().is::<Logout>() {
                 let logging_out_initiator = if let ConnectionStatus::LoggingOut(ref logging_out_type) = connection.status {
                     match logging_out_type {
                         &LoggingOutType::Ok => { //Remote acknowledged our logout but we're missing some messages.
@@ -1305,7 +1305,7 @@ impl InternalThread {
                             Some(LoggingOutInitiator::Remote)
                         },
                         &LoggingOutType::Error(_) => { None } //Does not matter. We are closing the connection immediately.
-                        &LoggingOutType::ResendRequesting(logging_out_initiator) => { //Remote resent Logout before fully responding to our ResendRequest.
+                        &LoggingOutType::ResendRequesting(_) => { //Remote resent Logout before fully responding to our ResendRequest.
                             None //No change so timeout timer can't be kept alive perpetually.
                         },
                     }
@@ -1353,7 +1353,7 @@ impl InternalThread {
             Some(message)
         }
 
-        fn on_less_than_expected_msg_seq_num(connection: &mut InternalConnection,message: Box<FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) {
+        fn on_less_than_expected_msg_seq_num(connection: &mut InternalConnection,message: Box<dyn FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) {
             //Messages with MsgSeqNum lower than expected are never processed as normal. They are
             //either duplicates (as indicated) or an unrecoverable error where one side fell
             //out of sync.
@@ -1378,10 +1378,10 @@ impl InternalThread {
             }
         }
 
-        fn on_expected_msg_seq_num(connection: &mut InternalConnection,mut message: Box<FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Result<Option<Box<FIXTMessage + Send>>,ConnectionTerminatedReason> {
+        fn on_expected_msg_seq_num(connection: &mut InternalConnection,mut message: Box<dyn FIXTMessage + Send>,msg_seq_num: MsgSeqNumType,tx: &Sender<EngineEvent>,timer: &mut Timer<(TimeoutType,Token)>) -> Result<Option<Box<dyn FIXTMessage + Send>>,ConnectionTerminatedReason> {
             //Start by incrementing expected inbound MsgSeqNum since the message is at least
             //formatted correctly and matches the expected MsgSeqNum.
-            try!(connection.increment_inbound_msg_seq_num());
+            connection.increment_inbound_msg_seq_num()?;
 
             //Handle general FIXT message validation.
             if message.is_poss_dup() && message.orig_sending_time() > message.sending_time() {
@@ -1424,7 +1424,7 @@ impl InternalThread {
             };
 
             //Handle Logout messages.
-            if let Some(logout) = message.as_any().downcast_ref::<Logout>() {
+            if message.as_any().is::<Logout>() {
                 //Remote responded to our Logout.
                 if let ConnectionStatus::LoggingOut(_) = connection.status {
                     connection.shutdown();
@@ -1663,7 +1663,7 @@ impl InternalThread {
             return Ok(());
         }
         else {
-            message = match try!(on_expected_msg_seq_num(connection,message,msg_seq_num,tx,timer)) {
+            message = match on_expected_msg_seq_num(connection,message,msg_seq_num,tx,timer)? {
                 Some(message) => message,
                 None => return Ok(()),
             };
@@ -1713,36 +1713,36 @@ impl InternalThread {
             _ => {
                 match parse_error {
                     ParseError::MissingRequiredTag(ref tag,_) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::RequiredTagMissing,b"Required tag missing"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::RequiredTagMissing,b"Required tag missing")?;
                     },
                     ParseError::UnexpectedTag(ref tag) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::TagNotDefinedForThisMessageType,b"Tag not defined for this message type"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::TagNotDefinedForThisMessageType,b"Tag not defined for this message type")?;
                     },
                     ParseError::UnknownTag(ref tag) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::InvalidTagNumber,b"Invalid tag number"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::InvalidTagNumber,b"Invalid tag number")?;
                     },
                     ParseError::NoValueAfterTag(ref tag) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::TagSpecifiedWithoutAValue,b"Tag specified without a value"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::TagSpecifiedWithoutAValue,b"Tag specified without a value")?;
                     },
                     ParseError::OutOfRangeTag(ref tag) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::ValueIsIncorrectForThisTag,b"Value is incorrect (out of range) for this tag"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::ValueIsIncorrectForThisTag,b"Value is incorrect (out of range) for this tag")?;
                     },
                     ParseError::WrongFormatTag(ref tag) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::IncorrectDataFormatForValue,b"Incorrect data format for value"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::IncorrectDataFormatForValue,b"Incorrect data format for value")?;
                     },
                     ParseError::SenderCompIDNotFourthTag => {
-                        try!(push_reject(connection,b"",SenderCompID::tag_bytes(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"SenderCompID must be the 4th tag"));
+                        push_reject(connection,b"",SenderCompID::tag_bytes(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"SenderCompID must be the 4th tag")?;
                     },
                     ParseError::TargetCompIDNotFifthTag => {
-                        try!(push_reject(connection,b"",TargetCompID::tag_bytes(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"TargetCompID must be the 5th tag"));
+                        push_reject(connection,b"",TargetCompID::tag_bytes(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"TargetCompID must be the 5th tag")?;
                     },
                     ParseError::ApplVerIDNotSixthTag => {
-                        try!(push_reject(connection,b"",ApplVerID::tag_bytes(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"ApplVerID must be the 6th tag if specified"));
+                        push_reject(connection,b"",ApplVerID::tag_bytes(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"ApplVerID must be the 6th tag if specified")?;
                     },
                     ParseError::MessageSizeTooBig => {
                         let mut error_text = b"Message size exceeds MaxMessageSize=".to_vec();
                         error_text.extend_from_slice(connection.parser.max_message_size().to_string().as_bytes());
-                        try!(push_reject(connection,b"",Vec::new(),SessionRejectReason::Other,&error_text[..]));
+                        push_reject(connection,b"",Vec::new(),SessionRejectReason::Other,&error_text[..])?;
                     },
                     ParseError::BeginStrNotFirstTag |
                     ParseError::BodyLengthNotSecondTag |
@@ -1750,14 +1750,14 @@ impl InternalThread {
                     ParseError::ChecksumNotLastTag |
                     ParseError::MissingPrecedingLengthTag(_) |
                     ParseError::MissingFollowingLengthTag(_) => {
-                        try!(push_reject(connection,b"",Vec::new(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"Tag specified out of required order"));
+                        push_reject(connection,b"",Vec::new(),SessionRejectReason::TagSpecifiedOutOfRequiredOrder,b"Tag specified out of required order")?;
                     },
                     ParseError::DuplicateTag(ref tag) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::TagAppearsMoreThanOnce,b"Tag appears more than once"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::TagAppearsMoreThanOnce,b"Tag appears more than once")?;
                     },
                     ParseError::MissingConditionallyRequiredTag(ref tag,ref message) => {
                         if *tag == OrigSendingTime::tag() { //Session level conditionally required tag.
-                            try!(push_reject(connection,message.msg_type(),*tag,SessionRejectReason::RequiredTagMissing,b"Conditionally required tag missing"));
+                            push_reject(connection,message.msg_type(),*tag,SessionRejectReason::RequiredTagMissing,b"Conditionally required tag missing")?;
                         }
                         else {
                             let mut business_message_reject = BusinessMessageReject::new();
@@ -1772,7 +1772,7 @@ impl InternalThread {
                     ParseError::MissingFirstRepeatingGroupTagAfterNumberOfRepeatingGroupTag(ref tag) |
                     ParseError::NonRepeatingGroupTagInRepeatingGroup(ref tag) |
                     ParseError::RepeatingGroupTagWithNoRepeatingGroup(ref tag) => {
-                        try!(push_reject(connection,b"",*tag,SessionRejectReason::IncorrectNumInGroupCountForRepeatingGroup,b"Incorrect NumInGroup count for repeating group"));
+                        push_reject(connection,b"",*tag,SessionRejectReason::IncorrectNumInGroupCountForRepeatingGroup,b"Incorrect NumInGroup count for repeating group")?;
                     },
                     ParseError::MsgTypeUnknown(ref msg_type) => {
                         //If we're here, we know the MsgType is not user defined. So we just need
@@ -1790,7 +1790,7 @@ impl InternalThread {
                         }
                         else {
                             //MsgType is invalid.
-                            try!(push_reject(connection,&msg_type[..],&msg_type[..],SessionRejectReason::InvalidMsgType,b"Invalid MsgType"));
+                            push_reject(connection,&msg_type[..],&msg_type[..],SessionRejectReason::InvalidMsgType,b"Invalid MsgType")?;
                         }
                     },
                     _ => {}, //TODO: Support other errors as appropriate.
@@ -1798,7 +1798,7 @@ impl InternalThread {
 
                 //Always increment expected inbound MsgSeqNum after encountering a message that is
                 //garbled, cannot be parsed, or is otherwise invalid. See FIXT 1.1, page 26.
-                try!(connection.increment_inbound_msg_seq_num());
+                connection.increment_inbound_msg_seq_num()?;
 
                 //Tell user about the garbled message just in case they care.
                 tx.send(EngineEvent::MessageReceivedGarbled(connection.as_connection(),parse_error)).unwrap();
@@ -1813,7 +1813,7 @@ pub fn internal_engine_thread(poll: Poll,
                               token_generator: Arc<Mutex<TokenGenerator>>,
                               tx: Sender<EngineEvent>,
                               rx: Receiver<InternalEngineToThreadEvent>,
-                              message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>,
+                              message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>,
                               max_message_size: u64) {
     //TODO: There should probably be a mechanism to log every possible message, even those we
     //handle automatically. One method might be to have a layer above this that handles the

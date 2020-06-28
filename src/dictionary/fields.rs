@@ -9,12 +9,12 @@
 // at your option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use dictionary::field_types::generic::{BoolTrueOrBlankFieldType,CharFieldType,CountryFieldType,CurrencyFieldType,DataFieldType,DayOfMonthFieldType,IntFieldType,LengthFieldType,LocalMktDateFieldType,MonthYearFieldType,NoneFieldType,RepeatingGroupFieldType,SeqNumFieldType,StringFieldType,UTCTimeOnlyFieldType,UTCTimestampFieldType};
+use dictionary::field_types::generic::{BoolTrueOrBlankFieldType,CharFieldType,CountryFieldType,CurrencyFieldType,DataFieldType,DayOfMonthFieldType,IntFieldType,LengthFieldType,LocalMktDateFieldType,MonthYearFieldType,NoneFieldType,RepeatingGroupFieldType,SeqNumFieldType,StringFieldType,UtcTimeOnlyFieldType,UtcTimestampFieldType};
 use dictionary::field_types::other as other_field_types;
 use dictionary::field_types::other::{ApplVerIDFieldType,BusinessRejectReasonFieldType,ComplexEventConditionFieldType,ComplexEventPriceBoundaryMethodFieldType,ComplexEventPriceTimeTypeFieldType,ComplexEventTypeFieldType,ContractMultiplierUnitFieldType,CPProgramFieldType,DefaultApplVerIDFieldType,EmailTypeFieldType,EncryptMethodFieldType,EventTypeFieldType,ExerciseStyleFieldType,FlowScheduleTypeFieldType,HandlInstFieldType,InstrmtAssignmentMethodFieldType,IssuerFieldType,ListMethodFieldType,MsgDirectionFieldType,NotRequiredSecurityIDSourceFieldType,NotRequiredSecurityTypeFieldType as SecurityTypeFieldType,NotRequiredSideFieldType,NotRequiredSymbolSfxFieldType as SymbolSfxFieldType,NotRequiredTimeUnitFieldType as TimeUnitFieldType,OptPayoutTypeFieldType,OrdTypeFieldType,PartyIDSourceFieldType,PartyRoleFieldType,PartySubIDTypeFieldType,PriceQuoteMethodFieldType,ProductFieldType,PutOrCallFieldType,RateSourceFieldType,RateSourceTypeFieldType,RequiredSecurityIDSourceFieldType,RequiredSideFieldType,RequiredStipulationTypeFieldType as StipulationTypeFieldType,RestructuringTypeFieldType,RoutingTypeFieldType,SecurityStatusFieldType,SeniorityFieldType,SessionRejectReasonFieldType,SettlMethodFieldType,SettlTypeFieldType,StrikePriceBoundaryMethodFieldType,StrikePriceDeterminationMethodFieldType,TimeInForceFieldType,UnderlyingCashTypeFieldType,UnderlyingFXRateCalcFieldType,UnderlyingPriceDeterminationMethodFieldType,UnderlyingSettlementTypeFieldType,UnitOfMeasureFieldType,ValuationMethodFieldType};
 use field_tag;
 use fix_version::FIXVersion;
-use message::{self,REQUIRED,NOT_REQUIRED};
+use message::{self, REQUIRED,NOT_REQUIRED};
 use message_version;
 use rule::Rule;
 
@@ -40,7 +40,7 @@ define_fields!(
     OrderID: StringFieldType = 37,
     OrderQty: StringFieldType = 38, //Qty
     OrdType: OrdTypeFieldType = 40,
-    OrigTime: UTCTimestampFieldType = 42,
+    OrigTime: UtcTimestampFieldType = 42,
     PossDupFlag: BoolTrueOrBlankFieldType = 43,
     Price: StringFieldType = 44, //Price
     RefSeqNum: SeqNumFieldType = 45,
@@ -48,14 +48,14 @@ define_fields!(
     SecurityID: StringFieldType = 48,
     SenderCompID: StringFieldType = 49,
     SenderSubID: StringFieldType = 50,
-    SendingTime: UTCTimestampFieldType = 52,
+    SendingTime: UtcTimestampFieldType = 52,
     SideField: RequiredSideFieldType = 54,
     Symbol: StringFieldType = 55,
     TargetCompID: StringFieldType = 56,
     TargetSubID: StringFieldType = 57,
     Text: StringFieldType = 58,
     TimeInForce: TimeInForceFieldType = 59,
-    TransactTime: UTCTimestampFieldType = 60,
+    TransactTime: UtcTimestampFieldType = 60,
     SettlType: SettlTypeFieldType = 63,
     SettlDate: LocalMktDateFieldType = 64,
     SymbolSfx: SymbolSfxFieldType = 65,
@@ -79,7 +79,7 @@ define_fields!(
     TestReqID: StringFieldType = 112,
     OnBehalfOfCompID: StringFieldType = 115,
     OnBehalfOfSubID: StringFieldType = 116,
-    OrigSendingTime: UTCTimestampFieldType = 122,
+    OrigSendingTime: UtcTimestampFieldType = 122,
     GapFillFlag: BoolTrueOrBlankFieldType = 123,
     DeliverToCompID: StringFieldType = 128,
     DeliverToSubID: StringFieldType = 129,
@@ -106,8 +106,8 @@ define_fields!(
     RoutingType: RoutingTypeFieldType = 216,
     RoutingID: StringFieldType = 217,
     CouponRate: PercentageFieldType = 223,
-    CouponPaymentDate: LocalMktDateFieldType = 224, //TODO: Use UTCDate when FIX version < 4.4.
-    IssueDate: LocalMktDateFieldType = 225, //TODO: Use UTCDate when FIX version < 4.4.
+    CouponPaymentDate: LocalMktDateFieldType = 224, //TODO: Use UtcDate when FIX version < 4.4.
+    IssueDate: LocalMktDateFieldType = 225, //TODO: Use UtcDate when FIX version < 4.4.
     RepurchaseTerm: IntFieldType = 226,
     RepurchaseRate: PercentageFieldType = 227,
     Factor: StringFieldType = 228, //Float
@@ -158,7 +158,7 @@ define_fields!(
     EncodedUnderlyingSecurityDescLen: NoneFieldType = 364 => Rule::PrepareForBytes{ bytes_tag: EncodedUnderlyingSecurityDesc::tag() },
     EncodedUnderlyingSecurityDesc: DataFieldType = 365 => Rule::ConfirmPreviousTag{ previous_tag: EncodedUnderlyingSecurityDescLen::tag() },
     LastMsgSeqNumProcessed: SeqNumFieldType = 369,
-    OnBehalfOfSendingTime: UTCTimestampFieldType = 370,
+    OnBehalfOfSendingTime: UtcTimestampFieldType = 370,
     RefTagID: StringFieldType = 371, //int
     RefMsgType: StringFieldType = 372,
     SessionRejectReason: SessionRejectReasonFieldType = 373,
@@ -226,7 +226,7 @@ define_fields!(
     LegSide: NotRequiredSideFieldType = 624,
     NoHops: RepeatingGroupFieldType<HopGrp> = 627,
     HopCompID: StringFieldType = 628,
-    HopSendingTime: UTCTimestampFieldType = 629,
+    HopSendingTime: UtcTimestampFieldType = 629,
     HopRefID: SeqNumFieldType = 630,
     ContractSettlMonth: MonthYearFieldType = 667,
     Pool: StringFieldType = 691,
@@ -306,7 +306,7 @@ define_fields!(
     RefApplVerID: ApplVerIDFieldType = 1130,
     RefCstmApplVerID: StringFieldType = 1131,
     DefaultApplVerID: DefaultApplVerIDFieldType = 1137,
-    EventTime: UTCTimestampFieldType = 1145,
+    EventTime: UtcTimestampFieldType = 1145,
     MinPriceIncrementAmount: AmtFieldType = 1146,
     UnitOfMeasureQty: StringFieldType = 1147, //Qty
     SecurityGroup: StringFieldType = 1151,
@@ -384,11 +384,11 @@ define_fields!(
     ComplexEventPriceTimeType: ComplexEventPriceTimeTypeFieldType = 1489,
     ComplexEventCondition: ComplexEventConditionFieldType = 1490,
     NoComplexEventDates: RepeatingGroupFieldType<ComplexEventDate> = 1491,
-    ComplexEventStartDate: UTCTimestampFieldType = 1492, //TODO: Must always be less than end date.
-    ComplexEventEndDate: UTCTimestampFieldType = 1493, //TODO: Must always be greater than event start date.
+    ComplexEventStartDate: UtcTimestampFieldType = 1492, //TODO: Must always be less than end date.
+    ComplexEventEndDate: UtcTimestampFieldType = 1493, //TODO: Must always be greater than event start date.
     NoComplexEventTimes: RepeatingGroupFieldType<ComplexEventTime> = 1494,
-    ComplexEventStartTime: UTCTimeOnlyFieldType = 1495, //TODO: Must always be less than end time.
-    ComplexEventEndTime: UTCTimeOnlyFieldType = 1496, //TODO: Must always be greater than start time.
+    ComplexEventStartTime: UtcTimeOnlyFieldType = 1495, //TODO: Must always be less than end time.
+    ComplexEventEndTime: UtcTimeOnlyFieldType = 1496, //TODO: Must always be greater than start time.
 );
 
 //Repeating Groups (Sorted Alphabetically)
@@ -716,4 +716,3 @@ define_message!(UndSecAltIDGrp {
     REQUIRED, underlying_security_alt_id: UnderlyingSecurityAltID [FIX43..],
     REQUIRED, underlying_security_alt_id_source: UnderlyingSecurityAltIDSource [FIX43..],
 });
-

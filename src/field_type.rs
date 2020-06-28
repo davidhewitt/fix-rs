@@ -27,7 +27,7 @@ pub trait FieldType {
         Err(SetValueError::WrongFormat)
     }
 
-    fn set_groups(_field: &mut Self::Type,_groups: Vec<Box<Message>>) -> bool {
+    fn set_groups(_field: &mut Self::Type,_groups: Vec<Box<dyn Message>>) -> bool {
         false
     }
 
@@ -35,4 +35,3 @@ pub trait FieldType {
     fn len(field: &Self::Type) -> usize;
     fn read(field: &Self::Type,fix_version: FIXVersion,message_version: MessageVersion,buf: &mut Vec<u8>) -> usize;
 }
-

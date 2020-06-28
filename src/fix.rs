@@ -43,8 +43,8 @@ const CHECKSUM_TAG_BYTES: &'static [u8] = b"10";
 const CHECKSUM_TAG: FieldTag = FieldTag(10);
 
 pub enum ParseError {
-    MissingRequiredTag(FieldTag,Box<FIXTMessage + Send>), //Required tag was not included in message.
-    MissingConditionallyRequiredTag(FieldTag,Box<FIXTMessage + Send>), //Conditionally required tag was not included in message.
+    MissingRequiredTag(FieldTag,Box<dyn FIXTMessage + Send>), //Required tag was not included in message.
+    MissingConditionallyRequiredTag(FieldTag,Box<dyn FIXTMessage + Send>), //Conditionally required tag was not included in message.
     BeginStrNotFirstTag,
     BodyLengthNotSecondTag,
     BodyLengthNotNumber,
@@ -115,13 +115,13 @@ impl fmt::Debug for ParseError {
 struct ParseGroupState {
     remaining_fields: FieldHashMap,
     remaining_required_fields: FieldHashSet,
-    message: Box<Message>,
+    message: Box<dyn Message>,
 }
 
 struct ParseRepeatingGroupState {
     number_of_tag: FieldTag,
     group_count: usize,
-    group_builder: Box<BuildMessage>,
+    group_builder: Box<dyn BuildMessage>,
     first_tag: FieldTag,
     groups: Vec<ParseGroupState>,
 }
@@ -203,7 +203,7 @@ fn set_message_value<T: Message + ?Sized>(message: &mut T,tag: FieldTag,bytes: &
 }
 
 pub struct Parser {
-    message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>,
+    message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>,
     max_message_length: u64,
     default_message_version: MessageVersion,
     default_message_type_version: HashMap<&'static [u8],MessageVersion>,
@@ -228,12 +228,12 @@ pub struct Parser {
     remaining_required_fields: FieldHashSet,
     missing_tag: FieldTag,
     missing_conditional_tag: FieldTag,
-    current_message: Box<FIXTMessage + Send>,
-    pub messages: Vec<Box<FIXTMessage + Send>>,
+    current_message: Box<dyn FIXTMessage + Send>,
+    pub messages: Vec<Box<dyn FIXTMessage + Send>>,
 }
 
 impl Parser {
-    pub fn new(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>,max_message_length: u64) -> Parser {
+    pub fn new(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>,max_message_length: u64) -> Parser {
         //Perform a sanity check to make sure message dictionary was defined correctly. For now,
         //validate_message_dictionary() panics on failure because dictionaries should be composed
         //using a compile time macro. Thus, there's no practical reason to try and recover.
@@ -342,7 +342,7 @@ impl Parser {
         self.max_message_length
     }
 
-    pub fn validate_message_dictionary(message_dictionary: &HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) {
+    pub fn validate_message_dictionary(message_dictionary: &HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) {
         enum MessageType {
             Standard,
             RepeatingGroup,
@@ -584,7 +584,7 @@ impl Parser {
             }
 
             let c = message_bytes[*index];
-            try!(self.update_book_keeping(c));
+            self.update_book_keeping(c)?;
 
             self.current_bytes.push(c);
 
@@ -595,7 +595,6 @@ impl Parser {
         Ok(())
     }
 
-    #[allow(match_same_arms)]
     fn handle_rule_after_value(&mut self,rule: &Rule) -> Result<bool,ParseError> {
         let mut skip_set_value = false;
 
@@ -679,7 +678,7 @@ impl Parser {
 
         //Make sure that iff the body of the message has already been read, this is the
         //checksum tag.
-        try!(self.if_checksum_then_is_last_tag());
+        self.if_checksum_then_is_last_tag()?;
 
         //If there is some tag ordering in effect, make sure this is the expected tag to
         //follow the previous tag.
@@ -693,7 +692,7 @@ impl Parser {
                     //Fast track to read in the specified number of bytes.
                     self.fast_track_bytes_remaining = byte_count;
                     *index += 1;
-                    try!(self.fast_track_read_bytes(index,&message_bytes));
+                    self.fast_track_read_bytes(index,&message_bytes)?;
                     *index -= 1;
                 },
                 TagRuleMode::RepeatingGroupStart(first_repeating_group_tag) => {
@@ -779,7 +778,7 @@ impl Parser {
             //handling that must be put off until after receiving the sixth field.
             self.message_type = self.current_bytes.clone();
             if self.fix_version != FIXVersion::FIXT_1_1 {
-                try!(self.prepare_for_message());
+                self.prepare_for_message()?;
             }
         }
         else if self.found_tag_count == 3 && self.fix_version == FIXVersion::FIXT_1_1 {
@@ -827,28 +826,28 @@ impl Parser {
 
                 //Now that the message version has been determined, prepare a collection of which
                 //fields are supported and which are required.
-                try!(self.prepare_for_message());
+                self.prepare_for_message()?;
 
                 //Start the message by filling out the SenderCompID and TargetCompID portions of
                 //message. These fields are always required for FIXT.1.1 messages.
-                try!(set_message_value(&mut *self.current_message,SenderCompID::tag(),&self.sender_comp_id[..]));
+                set_message_value(&mut *self.current_message,SenderCompID::tag(),&self.sender_comp_id[..])?;
                 self.remaining_fields.remove(&SenderCompID::tag());
                 self.remaining_required_fields.remove(&SenderCompID::tag());
-                try!(set_message_value(&mut *self.current_message,TargetCompID::tag(),&self.target_comp_id[..]));
+                set_message_value(&mut *self.current_message,TargetCompID::tag(),&self.target_comp_id[..])?;
                 self.remaining_fields.remove(&TargetCompID::tag());
                 self.remaining_required_fields.remove(&TargetCompID::tag());
 
                 //Mark ApplVerID as found so we produce an error if it's encountered anywhere else
                 //in the message.
                 if self.current_tag == ApplVerID::tag() {
-                    try!(set_message_value(&mut *self.current_message,ApplVerID::tag(),&self.current_bytes[..]));
+                    set_message_value(&mut *self.current_message,ApplVerID::tag(),&self.current_bytes[..])?;
                 }
                 self.remaining_fields.remove(&ApplVerID::tag());
             }
 
             //Make sure checksum checks out when done reading a message.
             let is_message_end = if self.current_tag == CHECKSUM_TAG {
-                try!(self.validate_checksum());
+                self.validate_checksum()?;
                 true
             }
             else {
@@ -892,7 +891,7 @@ impl Parser {
                                 //Apply parsed value to group.
                                 if let Rule::BeginGroup{ .. } = rule {} //Ignore begin group tags, they will be handled below.
                                 else {
-                                    try!(set_message_value(&mut *group.message,self.current_tag,&self.current_bytes[..]));
+                                    set_message_value(&mut *group.message,self.current_tag,&self.current_bytes[..])?;
                                 }
 
                                 //Save rule to handle later.
@@ -923,7 +922,7 @@ impl Parser {
 
                 //Out of the way result handling to appease the borrow checker.
                 if let Some(rule) = some_rule {
-                    try!(self.handle_rule_after_value(&rule));
+                    self.handle_rule_after_value(&rule)?;
                 }
                 if group_end {
                     //Put repeated group into next highest repeating group. If there are no
@@ -945,7 +944,7 @@ impl Parser {
                 //encountered. As a side effect, we also handle any tag specific
                 //rules in consequence of being encountered.
                 if let Some(rule) = self.remaining_fields.remove(&self.current_tag) {
-                    skip_set_value = try!(self.handle_rule_after_value(&rule));
+                    skip_set_value = self.handle_rule_after_value(&rule)?;
                 }
                 else {
                     if self.is_current_tag_known() {
@@ -971,7 +970,7 @@ impl Parser {
             }
 
             if !is_message_end && !tag_in_group && !skip_set_value {
-                try!(set_message_value(&mut *self.current_message,self.current_tag,&self.current_bytes[..]));
+                set_message_value(&mut *self.current_message,self.current_tag,&self.current_bytes[..])?;
             }
 
             if is_message_end {
@@ -1074,21 +1073,21 @@ impl Parser {
         self.scan_for_message(index,message_bytes);
 
         //Resume loading any bytes using the fast track if we ran out in the last call.
-        try!(self.fast_track_read_bytes(index,&message_bytes));
+        self.fast_track_read_bytes(index,&message_bytes)?;
 
         //Parse each byte in the message one by one.
         while *index < message_bytes.len() {
             let c = message_bytes[*index];
 
             //Perform basic checksum and body length updates.
-            try!(self.update_book_keeping(c));
+            self.update_book_keeping(c)?;
 
             //Check if this byte indicates a new tag=value, the end of a tag, part of a tag, or part of
             //a value.
             match c {
                 //Byte indicates a tag has finished being read.
                 b'=' if self.current_tag.is_empty() => {
-                    try!(self.match_tag_end(index,message_bytes));
+                    self.match_tag_end(index,message_bytes)?;
                 },
                 //Byte indicates a vale has finished being read. Now both the tag and value are known.
                 b'\x01' => { //SOH
@@ -1124,4 +1123,3 @@ impl Parser {
         Ok(())
     }
 }
-

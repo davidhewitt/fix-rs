@@ -95,7 +95,7 @@ define_message!(Heartbeat: b"0" => {
 });
 
 impl FIXTMessage for Heartbeat {
-    fn new_into_box(&self) -> Box<FIXTMessage + Send> {
+    fn new_into_box(&self) -> Box<dyn FIXTMessage + Send> {
         Box::new(Heartbeat::new())
     }
 
@@ -156,7 +156,7 @@ define_message!(TestRequest: b"1" => {
 });
 
 impl FIXTMessage for TestRequest {
-    fn new_into_box(&self) -> Box<FIXTMessage + Send> {
+    fn new_into_box(&self) -> Box<dyn FIXTMessage + Send> {
         Box::new(TestRequest::new())
     }
 
@@ -244,7 +244,7 @@ struct Connection {
 }
 
 impl Connection {
-    pub fn connect_and_logon(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> Result<Connection,io::Error> {
+    pub fn connect_and_logon(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> Result<Connection,io::Error> {
         //Connect to server.
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127,0,0,1),7001));
         let mut connection = Connection {
@@ -272,8 +272,8 @@ impl Connection {
         logon_message.default_appl_ver_id = MessageVersion::FIX50SP2;
         logon_message.username = b"some_user".to_vec();
         logon_message.password = b"some_password".to_vec();
-        try!(connection.send_message(logon_message));
-        try!(connection.recv_message::<Logon>().map(|_|()));
+        connection.send_message(logon_message)?;
+        connection.recv_message::<Logon>().map(|_|())?;
 
         Ok(connection)
     }
@@ -358,7 +358,7 @@ impl Connection {
         }
     }
 
-    pub fn recv_fixt_message(&mut self) -> Result<Box<FIXTMessage + Send>,io::Error> {
+    pub fn recv_fixt_message(&mut self) -> Result<Box<dyn FIXTMessage + Send>,io::Error> {
         if !self.parser.messages.is_empty() {
             return Ok(self.parser.messages.remove(0));
         }
@@ -399,12 +399,12 @@ impl Connection {
     }
 
     fn recv_message<T: FIXTMessage + Any + Clone>(&mut self) -> Result<T,io::Error> {
-        let fixt_message = try!(self.recv_fixt_message());
+        let fixt_message = self.recv_fixt_message()?;
         Ok(fixt_message.as_any().downcast_ref::<T>().expect("Not expected message type").clone())
     }
 
     pub fn recv_all_messages<F>(&mut self,mut received_message_func: F) -> Result<(),io::Error>
-        where F: FnMut(&Box<FIXTMessage + Send>) {
+        where F: FnMut(&Box<dyn FIXTMessage + Send>) {
         loop {
             match self.inbound_buffer.clear_and_read(&mut self.stream) {
                 Ok(bytes_read) => {
@@ -490,7 +490,7 @@ fn test_request_load() -> Result<(),io::Error> {
     );
 
     let mut latency_results = vec![LatencyResult { begin_send_time: Instant::now(), end_parse_time: Instant::now() };MESSAGE_COUNT as usize];
-    let mut connection = try!(Connection::connect_and_logon(build_dictionary()));
+    let mut connection = Connection::connect_and_logon(build_dictionary())?;
 
     //Send TestRequest messages with a priority on sending over receiving. Then measure how long it
     //takes to get a response for each.
@@ -506,14 +506,14 @@ fn test_request_load() -> Result<(),io::Error> {
         for event in events.iter() {
             let readiness = event.readiness();
             if readiness.is_writable() {
-                try!(connection.send_all_messages(&mut iter,|ref message| {
+                connection.send_all_messages(&mut iter,|ref message|?;
                     //TODO: Maybe check the test_req_id instead to be more general?
                     latency_results[message.msg_seq_num() as usize - 2].begin_send_time = Instant::now();
                 }));
            }
 
             if readiness.is_readable() {
-                try!(connection.recv_all_messages(|ref message| {
+                connection.recv_all_messages(|ref message|?;
                     latency_results[message.msg_seq_num() as usize - 2].end_parse_time = Instant::now();
 
                     //Have all messages been received?
@@ -545,7 +545,7 @@ fn test_request_latency() -> Result<(),io::Error> {
     );
 
     let mut latency_results = vec![LatencyResult { begin_send_time: Instant::now(), end_parse_time: Instant::now() };MESSAGE_COUNT as usize];
-    let mut connection = try!(Connection::connect_and_logon(build_dictionary()));
+    let mut connection = Connection::connect_and_logon(build_dictionary())?;
 
     //Send TestRequest messages with a priority on receiving over sending. Then measure how long it
     //takes to get a response for each.
@@ -561,7 +561,7 @@ fn test_request_latency() -> Result<(),io::Error> {
         for event in events.iter() {
             let readiness = event.readiness();
             if readiness.is_readable() {
-                try!(connection.recv_all_messages(|ref message| {
+                connection.recv_all_messages(|ref message|?;
                     latency_results[message.msg_seq_num() as usize - 2].end_parse_time = Instant::now();
 
                     //Have all messages been received?
@@ -576,7 +576,7 @@ fn test_request_latency() -> Result<(),io::Error> {
                 panic!("Other side closed connection");
             }
 
-            try!(connection.send_next_message(&mut iter,|ref message| {
+            connection.send_next_message(&mut iter,|ref message|?;
                 //TODO: Maybe check the test_req_id instead to be more general?
                 latency_results[message.msg_seq_num() as usize - 2].begin_send_time = Instant::now();
             }));
@@ -616,4 +616,3 @@ fn main() {
 
     //TODO: Make use of result here.
 }
-

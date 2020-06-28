@@ -26,7 +26,7 @@ pub trait Field {
 
 #[macro_export]
 macro_rules! define_fields {
-    ( $( $field_name:ident : $field_type:ty = $tag:expr $( => $rule:expr )* ),* $(),* ) => { $(
+    ( $( $field_name:ident : $field_type:ty = $tag:expr $( => $rule:expr )? ),* $(),* ) => { $(
         #[derive(BuildField)]
         pub struct $field_name {
             #[tag=$tag]
@@ -40,8 +40,8 @@ macro_rules! define_fields {
             fn rule() -> $crate::rule::Rule {
                 //If a rule is provided, prefer it first.
                 $(
-                    return $rule //A maximum of one rule may be specified.
-                )*;
+                    return $rule;
+                )?
 
                 //Next, check if the field type provides a rule. This way the BeginGroup rule
                 //can be specified automatically instead of using a nasty boilerplate in each field
@@ -117,4 +117,3 @@ macro_rules! define_fields {
         }
     )*};
 }
-

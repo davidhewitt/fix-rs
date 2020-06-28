@@ -23,14 +23,6 @@
 //!
 //! [1]: http://www.fixtradingcommunity.org/
 
-#![feature(attr_literals)]
-#![feature(plugin)]
-#![feature(proc_macro)]
-
-#![plugin(phf_macros)]
-
-#![allow(unknown_lints)]
-
 extern crate chrono;
 #[macro_use]
 extern crate fix_rs_macros;

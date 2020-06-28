@@ -9,16 +9,13 @@
 // at your option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![feature(attr_literals)]
-#![allow(unknown_lints)]
-
 extern crate chrono;
 #[macro_use]
 extern crate fix_rs;
 #[macro_use]
 extern crate fix_rs_macros;
 
-use chrono::offset::utc::UTC;
+use chrono::offset::Utc;
 use chrono::TimeZone;
 use std::any::Any;
 use std::collections::HashMap;
@@ -55,7 +52,7 @@ define_message!(LogonTest: b"L" => {
 });
 
 impl FIXTMessage for LogonTest {
-    fn new_into_box(&self) -> Box<FIXTMessage + Send> {
+    fn new_into_box(&self) -> Box<dyn FIXTMessage + Send> {
         Box::new(Self::new())
     }
 
@@ -104,8 +101,8 @@ impl FIXTMessage for LogonTest {
 }
 
 fn parse_message_with_ver<T: FIXTMessage + FIXTMessageBuildable + MessageDetails + Default + Any + Clone + PartialEq + Send>(fix_version: FIXVersion,message_version: MessageVersion,message: &[u8]) -> Result<T,ParseError> {
-    let mut message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>> = HashMap::new();
-    let builder: Box<BuildFIXTMessage + Send> = <T as Default>::default().builder();
+    let mut message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>> = HashMap::new();
+    let builder: Box<dyn BuildFIXTMessage + Send> = <T as Default>::default().builder();
     message_dictionary.insert(<T as MessageDetails>::msg_type(),builder);
 
     let mut parser = Parser::new(message_dictionary,MAX_MESSAGE_SIZE);
@@ -172,7 +169,7 @@ fn simple_test() {
     assert_eq!(message.encrypt_method,EncryptMethod::None);
     assert_eq!(message.heart_bt_int,30);
     assert_eq!(message.msg_seq_num,177);
-    assert_eq!(message.sending_time,UTC.ymd(2009,1,7).and_hms(18,15,16));
+    assert_eq!(message.sending_time,Utc.ymd(2009,1,7).and_hms(18,15,16));
     assert_eq!(message.sender_comp_id,b"SERVER".to_vec());
     assert_eq!(message.target_comp_id,b"CLIENT".to_vec());
 }
@@ -440,7 +437,7 @@ fn length_tag_test() {
     });
 
     impl FIXTMessage for LengthTagTestMessage {
-        fn new_into_box(&self) -> Box<FIXTMessage + Send> {
+        fn new_into_box(&self) -> Box<dyn FIXTMessage + Send> {
             Box::new(Self::new())
         }
 
@@ -489,17 +486,17 @@ fn length_tag_test() {
     }
 
     impl BuildFIXTMessage for BuildLengthTagTestMessage {
-        fn new_into_box(&self) -> Box<fixt::message::BuildFIXTMessage + Send> {
+        fn new_into_box(&self) -> Box<dyn fixt::message::BuildFIXTMessage + Send> {
             Box::new(BuildLengthTagTestMessage::new())
         }
 
-        fn build(&self) -> Box<fixt::message::FIXTMessage + Send> {
+        fn build(&self) -> Box<dyn fixt::message::FIXTMessage + Send> {
             Box::new(LengthTagTestMessage::new())
         }
     }
 
     impl FIXTMessageBuildable for LengthTagTestMessage {
-        fn builder(&self) -> Box<fixt::message::BuildFIXTMessage + Send> {
+        fn builder(&self) -> Box<dyn fixt::message::BuildFIXTMessage + Send> {
             Box::new(BuildLengthTagTestMessage::new())
         }
     }
@@ -554,7 +551,7 @@ fn repeating_groups_test() {
     });
 
     impl FIXTMessage for RepeatingGroupsTestMessage {
-        fn new_into_box(&self) -> Box<FIXTMessage + Send> {
+        fn new_into_box(&self) -> Box<dyn FIXTMessage + Send> {
             Box::new(Self::new())
         }
 
@@ -603,17 +600,17 @@ fn repeating_groups_test() {
     }
 
     impl BuildFIXTMessage for BuildRepeatingGroupsTestMessage {
-        fn new_into_box(&self) -> Box<fixt::message::BuildFIXTMessage + Send> {
+        fn new_into_box(&self) -> Box<dyn fixt::message::BuildFIXTMessage + Send> {
             Box::new(BuildRepeatingGroupsTestMessage::new())
         }
 
-        fn build(&self) -> Box<fixt::message::FIXTMessage + Send> {
+        fn build(&self) -> Box<dyn fixt::message::FIXTMessage + Send> {
             Box::new(RepeatingGroupsTestMessage::new())
         }
     }
 
     impl FIXTMessageBuildable for RepeatingGroupsTestMessage {
-        fn builder(&self) -> Box<fixt::message::BuildFIXTMessage + Send> {
+        fn builder(&self) -> Box<dyn fixt::message::BuildFIXTMessage + Send> {
             Box::new(BuildRepeatingGroupsTestMessage::new())
         }
     }
@@ -752,7 +749,7 @@ fn nested_repeating_groups_test() {
     });
 
     impl FIXTMessage for NestedRepeatingGroupsTestMessage {
-        fn new_into_box(&self) -> Box<FIXTMessage + Send> {
+        fn new_into_box(&self) -> Box<dyn FIXTMessage + Send> {
             Box::new(Self::new())
         }
 
@@ -801,17 +798,17 @@ fn nested_repeating_groups_test() {
     }
 
     impl BuildFIXTMessage for BuildNestedRepeatingGroupsTestMessage {
-        fn new_into_box(&self) -> Box<fixt::message::BuildFIXTMessage + Send> {
+        fn new_into_box(&self) -> Box<dyn fixt::message::BuildFIXTMessage + Send> {
             Box::new(BuildNestedRepeatingGroupsTestMessage::new())
         }
 
-        fn build(&self) -> Box<fixt::message::FIXTMessage + Send> {
+        fn build(&self) -> Box<dyn fixt::message::FIXTMessage + Send> {
             Box::new(NestedRepeatingGroupsTestMessage::new())
         }
     }
 
     impl FIXTMessageBuildable for NestedRepeatingGroupsTestMessage {
-        fn builder(&self) -> Box<fixt::message::BuildFIXTMessage + Send> {
+        fn builder(&self) -> Box<dyn fixt::message::BuildFIXTMessage + Send> {
             Box::new(BuildNestedRepeatingGroupsTestMessage::new())
         }
     }
@@ -847,7 +844,7 @@ fn stream_test() {
         assert_eq!(casted_message.sender_comp_id,b"SERVER".to_vec());
         assert_eq!(casted_message.target_comp_id,b"CLIENT".to_vec());
         assert_eq!(casted_message.msg_seq_num,177);
-        assert_eq!(casted_message.sending_time,UTC.ymd(2009,1,7).and_hms(18,15,16));
+        assert_eq!(casted_message.sending_time,Utc.ymd(2009,1,7).and_hms(18,15,16));
         assert_eq!(casted_message.encrypt_method,EncryptMethod::None);
         assert_eq!(casted_message.heart_bt_int,30);
     }
@@ -864,7 +861,7 @@ fn stream_test() {
     assert_eq!(casted_message.sender_comp_id,b"SERVER".to_vec());
     assert_eq!(casted_message.target_comp_id,b"CLIENT".to_vec());
     assert_eq!(casted_message.msg_seq_num,177);
-    assert_eq!(casted_message.sending_time,UTC.ymd(2009,1,7).and_hms(18,15,16));
+    assert_eq!(casted_message.sending_time,Utc.ymd(2009,1,7).and_hms(18,15,16));
     assert_eq!(casted_message.encrypt_method,EncryptMethod::None);
     assert_eq!(casted_message.heart_bt_int,30);
 
@@ -882,7 +879,7 @@ fn stream_test() {
         assert_eq!(casted_message.sender_comp_id,b"SERVER".to_vec());
         assert_eq!(casted_message.target_comp_id,b"CLIENT".to_vec());
         assert_eq!(casted_message.msg_seq_num,177);
-        assert_eq!(casted_message.sending_time,UTC.ymd(2009,1,7).and_hms(18,15,16));
+        assert_eq!(casted_message.sending_time,Utc.ymd(2009,1,7).and_hms(18,15,16));
         assert_eq!(casted_message.encrypt_method,EncryptMethod::None);
         assert_eq!(casted_message.heart_bt_int,30);
     }
@@ -906,7 +903,7 @@ fn stream_test() {
     assert_eq!(casted_message.sender_comp_id,b"SERVER".to_vec());
     assert_eq!(casted_message.target_comp_id,b"CLIENT".to_vec());
     assert_eq!(casted_message.msg_seq_num,177);
-    assert_eq!(casted_message.sending_time,UTC.ymd(2009,1,7).and_hms(18,15,16));
+    assert_eq!(casted_message.sending_time,Utc.ymd(2009,1,7).and_hms(18,15,16));
     assert_eq!(casted_message.encrypt_method,EncryptMethod::None);
     assert_eq!(casted_message.heart_bt_int,30);
 }
@@ -932,4 +929,3 @@ fn no_value_after_tag_test() {
         _ => assert!(false),
     }
 }
-

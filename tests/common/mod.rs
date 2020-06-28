@@ -8,6 +8,7 @@
 //     <LICENSE-APACHE or https://www.apache.org/licenses/LICENSE-2.0>,
 // at your option. This file may not be copied, modified, or distributed
 // except according to those terms.
+#![allow(dead_code)]
 
 extern crate chrono;
 extern crate fix_rs;
@@ -190,7 +191,7 @@ pub fn recv_bytes_with_timeout(stream: &mut TcpStream,timeout: Duration) -> Opti
     None
 }
 
-pub fn send_message_with_timeout(stream: &mut TcpStream,fix_version: FIXVersion,message_version: MessageVersion,message: Box<FIXTMessage + Send>,timeout: Option<Duration>) -> Result<(),usize> {
+pub fn send_message_with_timeout(stream: &mut TcpStream,fix_version: FIXVersion,message_version: MessageVersion,message: Box<dyn FIXTMessage + Send>,timeout: Option<Duration>) -> Result<(),usize> {
     let mut bytes = ByteBuffer::with_capacity(512);
     message.read(fix_version,message_version,&mut bytes);
 
@@ -213,7 +214,7 @@ pub fn send_message_with_timeout(stream: &mut TcpStream,fix_version: FIXVersion,
     Ok(())
 }
 
-pub fn send_message(stream: &mut TcpStream,fix_version: FIXVersion,message_version: MessageVersion,message: Box<FIXTMessage + Send>) {
+pub fn send_message(stream: &mut TcpStream,fix_version: FIXVersion,message_version: MessageVersion,message: Box<dyn FIXTMessage + Send>) {
     let _ = send_message_with_timeout(stream,fix_version,message_version,message,None);
 }
 
@@ -226,7 +227,7 @@ pub struct TestStream {
 }
 
 impl TestStream {
-    fn new(fix_version: FIXVersion,message_version: MessageVersion,stream: TcpStream,message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> TestStream {
+    fn new(fix_version: FIXVersion,message_version: MessageVersion,stream: TcpStream,message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> TestStream {
         //Setup a single Poll to watch the TCPStream. This way we can check for disconnects in
         //is_stream_closed(). Unfortunately, as of mio 0.6.1, Linux implementation emulates OS X
         //and Windows where a stream can only be registered with one Poll for the life of the
@@ -246,7 +247,7 @@ impl TestStream {
         }
     }
 
-    pub fn setup_test_server_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
+    pub fn setup_test_server_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
         //Setup server listener socket.
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127,0,0,1),SOCKET_PORT.fetch_add(1,Ordering::SeqCst) as u16));
         let listener = TcpListener::bind(&addr).unwrap();
@@ -267,11 +268,11 @@ impl TestStream {
          connection)
     }
 
-    pub fn setup_test_server(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
+    pub fn setup_test_server(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
         Self::setup_test_server_with_ver(FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2,message_dictionary)
     }
 
-    pub fn setup_test_server_and_logon_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
+    pub fn setup_test_server_and_logon_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
         //Connect.
         let (mut test_server,mut client,connection) = Self::setup_test_server_with_ver(fix_version,message_version,message_dictionary);
         test_server.parser.set_default_message_version(MessageVersion::FIX50);
@@ -299,11 +300,11 @@ impl TestStream {
         (test_server,client,connection)
     }
 
-    pub fn setup_test_server_and_logon(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
+    pub fn setup_test_server_and_logon(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Connection) {
         Self::setup_test_server_and_logon_with_ver(FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2,message_dictionary)
     }
 
-    pub fn setup_test_client_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
+    pub fn setup_test_client_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
         //Setup client and listener.
         let addr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127,0,0,1),SOCKET_PORT.fetch_add(1,Ordering::SeqCst) as u16));
         let mut client = Engine::new(message_dictionary.clone(),MAX_MESSAGE_SIZE).unwrap();
@@ -328,11 +329,11 @@ impl TestStream {
          connection)
     }
 
-    pub fn setup_test_client(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
+    pub fn setup_test_client(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
         Self::setup_test_client_with_ver(FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2,message_dictionary)
     }
 
-    pub fn setup_test_client_and_logon_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
+    pub fn setup_test_client_and_logon_with_ver(fix_version: FIXVersion,message_version: MessageVersion,message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
         //Connect.
         let (mut test_client,mut engine,listener,connection) = Self::setup_test_client_with_ver(fix_version,message_version,message_dictionary);
         test_client.parser.set_default_message_version(MessageVersion::FIX50);
@@ -366,7 +367,7 @@ impl TestStream {
         (test_client,engine,listener,connection)
     }
 
-    pub fn setup_test_client_and_logon(message_dictionary: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
+    pub fn setup_test_client_and_logon(message_dictionary: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) -> (TestStream,Engine,Listener,Connection) {
         Self::setup_test_client_and_logon_with_ver(FIXVersion::FIXT_1_1,MessageVersion::FIX50SP2,message_dictionary)
     }
 
@@ -390,7 +391,7 @@ impl TestStream {
         false
     }
 
-    pub fn try_recv_fixt_message(&mut self,timeout: Duration) -> Option<Box<FIXTMessage + Send>> {
+    pub fn try_recv_fixt_message(&mut self,timeout: Duration) -> Option<Box<dyn FIXTMessage + Send>> {
         if !self.parser.messages.is_empty() {
             return Some(self.parser.messages.remove(0));
         }
@@ -430,7 +431,7 @@ impl TestStream {
         None
     }
 
-    pub fn recv_fixt_message(&mut self) -> Box<FIXTMessage + Send> {
+    pub fn recv_fixt_message(&mut self) -> Box<dyn FIXTMessage + Send> {
         self.try_recv_fixt_message(Duration::from_secs(5)).expect("Did not receive FIXT message")
     }
 
@@ -458,4 +459,3 @@ impl TestStream {
         send_message_with_timeout(&mut self.stream,fix_version,message_version,Box::new(message),Some(timeout))
     }
 }
-

@@ -6,10 +6,12 @@ description = "Derive macros used by fix-rs."
 homepage = "https://github.com/jbendig/fix-rs"
 repository = "https://github.com/jbendig/fix-rs"
 license = "MIT/Apache-2.0"
+edition = "2018"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = "0.11.4"
-quote = "0.3.12"
+syn = "1.0.33"
+quote = "1.0.7"
+proc-macro2 = "1.0.18"

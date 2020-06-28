@@ -9,9 +9,6 @@
 // at your option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![feature(attr_literals)]
-#![feature(const_fn)]
-
 #[macro_use]
 extern crate fix_rs;
 #[macro_use]

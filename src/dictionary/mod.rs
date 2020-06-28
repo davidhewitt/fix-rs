@@ -55,12 +55,12 @@ macro_rules! define_dictionary {
 }
 
 pub trait CloneDictionary {
-    fn clone(&self) -> HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>;
+    fn clone(&self) -> HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>;
 }
 
-impl CloneDictionary for HashMap<&'static [u8],Box<BuildFIXTMessage + Send>> {
-    fn clone(&self) -> HashMap<&'static [u8],Box<BuildFIXTMessage + Send>> {
-        let mut result = HashMap::<&'static [u8],Box<BuildFIXTMessage + Send>>::new();
+impl CloneDictionary for HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>> {
+    fn clone(&self) -> HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>> {
+        let mut result = HashMap::<&'static [u8],Box<dyn BuildFIXTMessage + Send>>::new();
         for (key,value) in self {
             result.insert(key,BuildFIXTMessage::new_into_box(&**value));
         }
@@ -206,4 +206,3 @@ pub fn standard_msg_types() -> HashSet<&'static [u8]> {
 
     result
 }
-

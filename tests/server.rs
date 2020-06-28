@@ -9,9 +9,6 @@
 // at your option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![feature(attr_literals)]
-#![feature(const_fn)]
-
 #[macro_use]
 extern crate fix_rs;
 #[macro_use]
@@ -420,7 +417,7 @@ fn test_connection_terminated_while_approving_logon() {
     });
 
     //Disconnect.
-    test_client.stream.shutdown(Shutdown::Both);
+    test_client.stream.shutdown(Shutdown::Both).expect("disconnect");
 
     //Confirm connection was terminated.
     engine_poll_event!(engine,EngineEvent::ConnectionTerminated(terminated_connection,reason) => {

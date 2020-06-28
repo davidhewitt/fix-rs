@@ -9,8 +9,6 @@
 // at your option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![feature(attr_literals)]
-#![feature(const_fn)]
 #![allow(non_snake_case)]
 
 ///! The following test cases are based on the tests listed in the FIXT 1.1 spec.
@@ -48,7 +46,7 @@ use fix_rs::fixt::message::{BuildFIXTMessage,FIXTMessage};
 use fix_rs::message::{self,NOT_REQUIRED,REQUIRED,MessageDetails};
 use fix_rs::message_version::{self,MessageVersion};
 
-fn is_logon_valid(message: &Logon) -> bool {
+fn is_logon_valid(_message: &Logon) -> bool {
     //TODO: Confirm Logon message is valid.
     true
 }
@@ -78,7 +76,7 @@ fn test_1B() {
 
     //a, b and c. Handle a simple logon exchange.
     {
-        let (_,mut client,connection,logon_message) = do_logon(|mut test_server,message| {
+        let (_,mut client,connection,logon_message) = do_logon(|test_server,message| {
             assert!(is_logon_valid(&message));
 
             let mut response_message = new_fixt_message!(Logon);
@@ -107,7 +105,7 @@ fn test_1B() {
 
     //c. Handle receiving a valid Logon with too high of MsgSeqNum.
     {
-        let (mut test_server,mut client,connection,_) = do_logon(|mut test_server,message| {
+        let (mut test_server,mut client,connection,_) = do_logon(|test_server,message| {
             assert!(is_logon_valid(&message));
 
             let mut response_message = new_fixt_message!(Logon);
@@ -140,7 +138,7 @@ fn test_1B() {
 
     //d. Handle receiving an invalid Logon.
     {
-        let (mut test_server,mut client,connection,_) = do_logon(|mut test_server,message| {
+        let (mut test_server,mut client,connection,_) = do_logon(|test_server,message| {
             let mut response_message = new_fixt_message!(Logon);
             response_message.encrypt_method = message.encrypt_method;
             response_message.heart_bt_int = -1;
@@ -167,7 +165,7 @@ fn test_1B() {
 
     //e. Handle receiving any message other than a Logon.
     {
-        let (mut test_server,mut client,connection,_) = do_logon(|mut test_server,_| {
+        let (mut test_server,mut client,connection,_) = do_logon(|test_server,_| {
             let mut new_order_single = new_fixt_message!(NewOrderSingle);
             new_order_single.cl_ord_id = b"0".to_vec();
             new_order_single.symbol = b"TEST".to_vec();
@@ -232,7 +230,7 @@ fn test_1S() {
     //a. Receive a valid Logon message, respond with a Logon message, and if received Logon message
     //has too high of MsgSeqNum, send a ResendRequest.
     {
-        let (mut test_client,_engine,_listener,_connection,initial_logon_message) = do_logon(|_|{},|mut engine,connection,logon_message| {
+        let (mut test_client,_engine,_listener,_connection,initial_logon_message) = do_logon(|_|{},|engine,connection,logon_message| {
             let mut response_message = new_fixt_message!(Logon);
             response_message.encrypt_method = logon_message.encrypt_method.clone();
             response_message.heart_bt_int = logon_message.heart_bt_int.clone();
@@ -254,7 +252,7 @@ fn test_1S() {
         let (mut test_client,_engine,_listener,_connection,_initial_logon_message) = do_logon(|logon_message: &mut Logon| {
             logon_message.msg_seq_num = 45;
         },
-        |mut engine,connection,logon_message| {
+        |engine,connection,logon_message| {
             let mut response_message = new_fixt_message!(Logon);
             response_message.encrypt_method = logon_message.encrypt_method.clone();
             response_message.heart_bt_int = logon_message.heart_bt_int.clone();
@@ -290,7 +288,7 @@ fn test_1S() {
             logon_message.username = b"Username".to_vec();
             logon_message.password = b"password".to_vec()
         },
-        |mut engine,connection,_| {
+        |engine,connection,_| {
             engine.reject_new_connection(connection,Some(b"Invalid username and/or password".to_vec()));
         });
 
@@ -498,10 +496,10 @@ fn test_2B() {
     //And for each type handle:
     //      1. MsgSeqNum not already received => Process as normal.
     //      2. MsgSeqNum has already been received => Ignore message,
-    let mut orig_sending_time_setup_fns = Vec::<Box<FnMut(&mut TestRequest)>>::new();
+    let mut orig_sending_time_setup_fns = Vec::<Box<dyn FnMut(&mut TestRequest)>>::new();
     orig_sending_time_setup_fns.push(Box::new(|message| { message.orig_sending_time = message.sending_time - chrono::Duration::seconds(1); }));
     orig_sending_time_setup_fns.push(Box::new(|message| { message.orig_sending_time = message.sending_time; }));
-    for mut orig_sending_time_setup_fn in orig_sending_time_setup_fns {
+    for _orig_sending_time_setup_fn in orig_sending_time_setup_fns {
         //Connect and logon.
         let (mut test_server,mut client,connection) = TestStream::setup_test_server_and_logon(build_dictionary());
 
@@ -851,7 +849,7 @@ fn test_2B() {
     //l., m.: TODO: BodyLength must be correct. Otherwise, ignore and issue warning.
     //n., o.: TODO: SendingTime must be within 2 minutes of current (atomic click-based) time.
     //              Otherwise, Reject and Logout. Note: This is probably International Atomic Time
-    //              (TAI) instead of UTC.
+    //              (TAI) instead of Utc.
     //s., t.: TODO: BeginString, BodyLength, and MsgType should be first three fields. Otherwise,
     //              ignore and issue warning.
 }
@@ -1587,7 +1585,7 @@ fn test_14B() {
         REQUIRED, test_req_id_2: TestReqID [FIX40..],
     });
 
-    fn do_garbled_test_with_dict<F: Fn(&mut TestStream,&mut Engine,Connection),TestRequestResponse: FIXTMessage + Any + Clone>(session_reject_reason: SessionRejectReason,ref_tag_id: &'static [u8],test_func: F,dict: HashMap<&'static [u8],Box<BuildFIXTMessage + Send>>) {
+    fn do_garbled_test_with_dict<F: Fn(&mut TestStream,&mut Engine,Connection),TestRequestResponse: FIXTMessage + Any + Clone>(session_reject_reason: SessionRejectReason,ref_tag_id: &'static [u8],test_func: F,dict: HashMap<&'static [u8],Box<dyn BuildFIXTMessage + Send>>) {
         //Connect and Logon.
         let (mut test_server,mut client,connection) = TestStream::setup_test_server_and_logon(dict);
 

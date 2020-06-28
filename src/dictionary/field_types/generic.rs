@@ -10,9 +10,9 @@
 // except according to those terms.
 
 use chrono::{Datelike,Local,NaiveDate,NaiveTime,Timelike};
-use chrono::datetime::DateTime;
-use chrono::offset::utc::UTC;
-use chrono::naive::datetime::NaiveDateTime;
+use chrono::DateTime;
+use chrono::offset::Utc;
+use chrono::naive::NaiveDateTime;
 use std::any::Any;
 use std::marker::PhantomData;
 use std::io::Write;
@@ -591,7 +591,7 @@ impl FieldType for DayOfMonthFieldType {
     }
 
     fn set_value(field: &mut Self::Type,bytes: &[u8]) -> Result<(),SetValueError> {
-        let new_value = try!(slice_to_int::<u8>(bytes));
+        let new_value = slice_to_int::<u8>(bytes)?;
         if new_value < 1 || new_value > 31 {
             return Err(SetValueError::OutOfRange);
         }
@@ -631,7 +631,7 @@ impl FieldType for IntFieldType {
     }
 
     fn set_value(field: &mut Self::Type,bytes: &[u8]) -> Result<(),SetValueError> {
-        *field = try!(slice_to_int::<Self::Type>(bytes));
+        *field = slice_to_int::<Self::Type>(bytes)?;
 
         Ok(())
     }
@@ -679,9 +679,9 @@ impl FieldType for LocalMktDateFieldType {
             return Err(SetValueError::WrongFormat);
         }
 
-        let year = try!(slice_to_int::<i32>(&bytes[0..4]));
-        let month = try!(slice_to_int::<u32>(&bytes[4..6]));
-        let day = try!(slice_to_int::<u32>(&bytes[6..8]));
+        let year = slice_to_int::<i32>(&bytes[0..4])?;
+        let month = slice_to_int::<u32>(&bytes[4..6])?;
+        let day = slice_to_int::<u32>(&bytes[6..8])?;
 
         *field = NaiveDate::from_ymd(year,month,day);
 
@@ -785,7 +785,7 @@ impl MonthYear {
     }
 
     pub fn new_now() -> MonthYear {
-        let datetime = UTC::now();
+        let datetime = Utc::now();
 
         MonthYear {
             year: datetime.year() as i16,
@@ -795,7 +795,7 @@ impl MonthYear {
     }
 
     pub fn new_now_day() -> MonthYear {
-        let datetime = UTC::now();
+        let datetime = Utc::now();
 
         MonthYear {
             year: datetime.year() as i16,
@@ -805,7 +805,7 @@ impl MonthYear {
     }
 
     pub fn new_now_with_week(week: u8) -> MonthYear {
-        let datetime = UTC::now();
+        let datetime = Utc::now();
 
         MonthYear {
             year: datetime.year() as i16,
@@ -878,7 +878,7 @@ impl FieldType for SeqNumFieldType {
     }
 
     fn set_value(field: &mut Self::Type,bytes: &[u8]) -> Result<(),SetValueError> {
-        *field = try!(slice_to_int::<Self::Type>(bytes));
+        *field = slice_to_int::<Self::Type>(bytes)?;
 
         Ok(())
     }
@@ -943,7 +943,7 @@ impl<T: Message + MessageBuildable + Any + Clone + Default + PartialEq + Send + 
         Default::default()
     }
 
-    fn set_groups(field: &mut Self::Type,mut groups: Vec<Box<Message>>) -> bool {
+    fn set_groups(field: &mut Self::Type,mut groups: Vec<Box<dyn Message>>) -> bool {
         field.clear();
 
         for group in groups.drain(0..) {
@@ -984,10 +984,10 @@ impl<T: Message + MessageBuildable + Any + Clone + Default + PartialEq + Send + 
     }
 }
 
-pub struct UTCTimeOnlyFieldType;
+pub struct UtcTimeOnlyFieldType;
 
-impl UTCTimeOnlyFieldType {
-    pub fn new_now() -> <UTCTimeOnlyFieldType as FieldType>::Type {
+impl UtcTimeOnlyFieldType {
+    pub fn new_now() -> <UtcTimeOnlyFieldType as FieldType>::Type {
         let spec = ::time::get_time();
 
         let hours = spec.sec % (24 * 60 * 60);
@@ -998,11 +998,11 @@ impl UTCTimeOnlyFieldType {
     }
 }
 
-impl FieldType for UTCTimeOnlyFieldType {
+impl FieldType for UtcTimeOnlyFieldType {
     type Type = NaiveTime;
 
     fn default_value() -> Self::Type {
-        UTCTimeOnlyFieldType::new_now()
+        UtcTimeOnlyFieldType::new_now()
     }
 
     fn set_value(field: &mut Self::Type,bytes: &[u8]) -> Result<(),SetValueError> {
@@ -1010,9 +1010,9 @@ impl FieldType for UTCTimeOnlyFieldType {
             return Err(SetValueError::WrongFormat);
         }
 
-        let hours = try!(slice_to_int::<u32>(&bytes[0..2]));
-        let minutes = try!(slice_to_int::<u32>(&bytes[3..5]));
-        let seconds = try!(slice_to_int::<u32>(&bytes[6..8]));
+        let hours = slice_to_int::<u32>(&bytes[0..2])?;
+        let minutes = slice_to_int::<u32>(&bytes[3..5])?;
+        let seconds = slice_to_int::<u32>(&bytes[6..8])?;
         let milliseconds = if bytes.len() == 8 {
             0
         }
@@ -1021,7 +1021,7 @@ impl FieldType for UTCTimeOnlyFieldType {
                 return Err(SetValueError::WrongFormat);
             }
 
-            try!(slice_to_int::<u32>(&bytes[9..12]))
+            slice_to_int::<u32>(&bytes[9..12])?
         }
         else {
             return Err(SetValueError::WrongFormat);
@@ -1046,36 +1046,36 @@ impl FieldType for UTCTimeOnlyFieldType {
     }
 }
 
-pub struct UTCTimestampFieldType;
+pub struct UtcTimestampFieldType;
 
-impl UTCTimestampFieldType {
-    pub fn new_now() -> <UTCTimestampFieldType as FieldType>::Type {
+impl UtcTimestampFieldType {
+    pub fn new_now() -> <UtcTimestampFieldType as FieldType>::Type {
         let spec = ::time::get_time();
 
         //Strip nanoseconds so only whole milliseconds remain (with truncation based rounding).
-        //This is because UTCTimestamp does not support sub-millisecond precision.
+        //This is because UtcTimestamp does not support sub-millisecond precision.
         let mut nsec = spec.nsec as u32;
         nsec -= nsec % 1_000_000;
 
         let naive = NaiveDateTime::from_timestamp(spec.sec,nsec);
-        DateTime::from_utc(naive,UTC)
+        DateTime::from_utc(naive, Utc)
     }
 
-    pub fn new_empty() -> <UTCTimestampFieldType as FieldType>::Type {
+    pub fn new_empty() -> <UtcTimestampFieldType as FieldType>::Type {
         //Create a new time stamp that can be considered empty. An Option<_> might be preferred
         //but that would make using the timestamp needlessly complicated.
-        DateTime::<UTC>::from_utc(
+        DateTime::<Utc>::from_utc(
             NaiveDate::from_ymd(-1,1,1).and_hms(0,0,0),
-            UTC
+            Utc
         )
     }
 }
 
-impl FieldType for UTCTimestampFieldType {
-    type Type = DateTime<UTC>;
+impl FieldType for UtcTimestampFieldType {
+    type Type = DateTime<Utc>;
 
     fn default_value() -> Self::Type {
-        UTCTimestampFieldType::new_empty()
+        UtcTimestampFieldType::new_empty()
     }
 
     fn set_value(field: &mut Self::Type,bytes: &[u8]) -> Result<(),SetValueError> {
@@ -1083,12 +1083,12 @@ impl FieldType for UTCTimestampFieldType {
             return Err(SetValueError::WrongFormat);
         }
 
-        let year = try!(slice_to_int::<i32>(&bytes[0..4]));
-        let month = try!(slice_to_int::<u32>(&bytes[4..6]));
-        let day = try!(slice_to_int::<u32>(&bytes[6..8]));
-        let hours = try!(slice_to_int::<u32>(&bytes[9..11]));
-        let minutes = try!(slice_to_int::<u32>(&bytes[12..14]));
-        let seconds = try!(slice_to_int::<u32>(&bytes[15..17]));
+        let year = slice_to_int::<i32>(&bytes[0..4])?;
+        let month = slice_to_int::<u32>(&bytes[4..6])?;
+        let day = slice_to_int::<u32>(&bytes[6..8])?;
+        let hours = slice_to_int::<u32>(&bytes[9..11])?;
+        let minutes = slice_to_int::<u32>(&bytes[12..14])?;
+        let seconds = slice_to_int::<u32>(&bytes[15..17])?;
         let milliseconds = if bytes.len() == 17 {
             0
         }
@@ -1097,16 +1097,16 @@ impl FieldType for UTCTimestampFieldType {
                 return Err(SetValueError::WrongFormat);
             }
 
-            try!(slice_to_int::<u32>(&bytes[18..21]))
+            slice_to_int::<u32>(&bytes[18..21])?
         }
         else {
             return Err(SetValueError::WrongFormat);
         };
 
-        *field = DateTime::<UTC>::from_utc(
+        *field = DateTime::<Utc>::from_utc(
             NaiveDate::from_ymd(year,month,day)
                        .and_hms_milli(hours,minutes,seconds,milliseconds),
-            UTC
+            Utc
         );
 
         Ok(())
@@ -1138,4 +1138,3 @@ impl FieldType for UTCTimestampFieldType {
         21
     }
 }
-

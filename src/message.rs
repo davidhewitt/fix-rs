@@ -32,13 +32,13 @@ pub trait BuildMessage {
     fn fields(&mut self,version: MessageVersion) -> FieldHashMap;
     fn required_fields(&self,version: MessageVersion) -> FieldHashSet;
 
-    fn new_into_box(&self) -> Box<BuildMessage + Send>;
-    fn build(&self) -> Box<Message + Send>;
+    fn new_into_box(&self) -> Box<dyn BuildMessage + Send>;
+    fn build(&self) -> Box<dyn Message + Send>;
 }
 
 pub trait MessageBuildable {
-    fn builder(&self) -> Box<BuildMessage + Send>;
-    fn builder_func(&self) -> fn() -> Box<BuildMessage + Send>;
+    fn builder(&self) -> Box<dyn BuildMessage + Send>;
+    fn builder_func(&self) -> fn() -> Box<dyn BuildMessage + Send>;
 }
 
 pub trait MessageDetails {
@@ -63,10 +63,10 @@ pub trait Message {
     fn meta(&self) -> &Option<Meta>;
     fn set_meta(&mut self,meta: Meta);
     fn set_value(&mut self,key: FieldTag,value: &[u8]) -> Result<(),SetValueError>;
-    fn set_groups(&mut self,key: FieldTag,groups: Vec<Box<Message>>) -> bool;
-    fn as_any(&self) -> &Any;
-    fn as_any_mut(&mut self) -> &mut Any;
-    fn new_into_box(&self) -> Box<Message + Send>;
+    fn set_groups(&mut self,key: FieldTag,groups: Vec<Box<dyn Message>>) -> bool;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn new_into_box(&self) -> Box<dyn Message + Send>;
     fn msg_type_header(&self) -> &'static [u8];
     fn read_body(&self,fix_version: FIXVersion,message_version: MessageVersion,buf: &mut Vec<u8>) -> usize;
 
@@ -217,7 +217,7 @@ macro_rules! match_message_version {
 
 #[macro_export]
 macro_rules! define_message {
-    ( $message_name:ident $( : $message_type:expr => )* { $( $field_required:expr, $field_name:ident : $field_type:ty [$( $version:tt )*] $(=> REQUIRED_WHEN $required_when_expr:expr)* ),* $(),* } ) => {
+    ( $message_name:ident $( : $message_type:expr => )? { $( $field_required:expr, $field_name:ident : $field_type:ty [$( $version:tt )*] $(=> REQUIRED_WHEN $required_when_expr:expr)* ),* $(),* } ) => {
         #[derive(BuildMessage)]
         pub struct $message_name {
             pub meta: Option<$crate::message::Meta>,
@@ -300,7 +300,7 @@ macro_rules! define_message {
         impl $crate::message::MessageDetails for $message_name {
             #[allow(unreachable_code)]
             fn msg_type() -> &'static [u8] {
-                $( return $message_type )*; //Only one message type can be specified.
+                $( return $message_type; )?
 
                 b""
             }
@@ -341,7 +341,7 @@ macro_rules! define_message {
                 }
             }
 
-            fn set_groups(&mut self,key: $crate::field_tag::FieldTag,groups: Vec<Box<$crate::message::Message>>) -> bool {
+            fn set_groups(&mut self,key: $crate::field_tag::FieldTag,groups: Vec<Box<dyn $crate::message::Message>>) -> bool {
                 use $crate::field::Field;
                 use $crate::field_type::FieldType;
 
@@ -354,15 +354,15 @@ macro_rules! define_message {
                 }
             }
 
-            fn as_any(&self) -> &::std::any::Any {
+            fn as_any(&self) -> &dyn (::std::any::Any) {
                 self
             }
 
-            fn as_any_mut(&mut self) -> &mut ::std::any::Any {
+            fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
                 self
             }
 
-            fn new_into_box(&self) -> Box<$crate::message::Message + Send> {
+            fn new_into_box(&self) -> Box<dyn $crate::message::Message + Send> {
                 Box::new($message_name::new())
             }
 
@@ -392,4 +392,3 @@ macro_rules! define_message {
         }
     };
 }
-
