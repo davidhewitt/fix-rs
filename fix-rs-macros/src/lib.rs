@@ -97,7 +97,7 @@ pub fn build_message(input: TokenStream) -> TokenStream {
     let build_message_name = syn::Ident::new(&format!("Build{}", message_name), Span::call_site());
     let mut message_type_header = "35=".as_bytes().to_vec();
     message_type_header.extend_from_slice(&message_type);
-    message_type_header.extend_from_slice(b"\\x01");
+    message_type_header.extend_from_slice(b"\x01");
 
     //Convert symbols into tokens so quote's ToTokens trait doesn't quote them.
     let message_type_header = syn::LitByteStr::new(&message_type_header, Span::call_site());
@@ -228,11 +228,12 @@ pub fn build_field(input: TokenStream) -> TokenStream {
     };
 
     let field_name = ast.ident;
+    let bytes = syn::LitByteStr::new(tag.to_string().as_bytes(), Span::call_site());
 
     let tokens = quote! {
         impl #field_name {
             fn tag_bytes() -> &'static [u8] {
-                b"#tag_bytes"
+                #bytes
             }
 
             fn tag() -> field_tag::FieldTag {

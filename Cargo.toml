@@ -23,6 +23,7 @@ load-testing = ["clap"]
 "time" = "0.1"
 "phf" = { version = "0.8.0", features = ["macros"] }
 "clap" = { version = "~2.23.3", optional = true }
+log = "*"
 
 [[bin]]
 name="fix-rs-lt"
