@@ -233,16 +233,16 @@ macro_rules! symbol_to_message_version {
 #[macro_export]
 macro_rules! match_message_version {
     ( $version:ident, $minimum_version:tt ) => {{
-        match_message_version!($version, $minimum_version..$minimum_version)
+        $crate::match_message_version!($version, $minimum_version..$minimum_version)
     }};
 
     ( $version:ident, $minimum_version:tt .. ) => {{
-        match_message_version!($version, $minimum_version..FIX50SP2)
+        $crate::match_message_version!($version, $minimum_version..FIX50SP2)
     }};
 
     ( $version:ident, $minimum_version:tt .. $maximum_version:tt ) => {
-        if $version.as_value() >= symbol_to_message_version!($minimum_version).as_value()
-            && $version.as_value() <= symbol_to_message_version!($maximum_version).as_value()
+        if $version.as_value() >= $crate::symbol_to_message_version!($minimum_version).as_value()
+            && $version.as_value() <= $crate::symbol_to_message_version!($maximum_version).as_value()
         {
             true
         } else {
@@ -254,7 +254,7 @@ macro_rules! match_message_version {
 #[macro_export]
 macro_rules! define_message {
     ( $message_name:ident $( : $message_type:expr => )? { $( $field_required:expr, $field_name:ident : $field_type:ty [$( $version:tt )*] $(=> REQUIRED_WHEN $required_when_expr:expr)* ),* $(),* } ) => {
-        #[derive(BuildMessage)]
+        #[derive($crate::BuildMessage)]
         pub struct $message_name {
             pub meta: Option<$crate::message::Meta>,
             $( pub $field_name: <<$field_type as $crate::field::Field>::Type as $crate::field_type::FieldType>::Type, )*
@@ -283,7 +283,7 @@ macro_rules! define_message {
 
             #[allow(unreachable_code)]
             fn first_field(version: $crate::message_version::MessageVersion) -> $crate::field_tag::FieldTag {
-                $( if match_message_version!(version,$( $version)*) {
+                $( if $crate::match_message_version!(version,$( $version)*) {
                     return <$field_type as $crate::field::Field>::tag();
                 } )*
 
@@ -292,7 +292,7 @@ macro_rules! define_message {
 
             fn field_count(version: $crate::message_version::MessageVersion) -> usize {
                 let mut result = 0;
-                $( if match_message_version!(version,$( $version )*) {
+                $( if $crate::match_message_version!(version,$( $version )*) {
                     let _ = $field_required; result += 1;
                 } )*
 
@@ -301,7 +301,7 @@ macro_rules! define_message {
 
             fn required_field_count(version: $crate::message_version::MessageVersion) -> usize {
                 let mut result = 0;
-                $( if match_message_version!(version,$( $version )*) && $field_required {
+                $( if $crate::match_message_version!(version,$( $version )*) && $field_required {
                     result += 1;
                 } )*
 
@@ -310,7 +310,7 @@ macro_rules! define_message {
 
             fn fields(version: $crate::message_version::MessageVersion) -> $crate::message::FieldHashMap {
                 let mut fields = ::std::collections::HashMap::with_capacity_and_hasher($message_name::field_count(version) * 1,$crate::hash::BuildFieldHasher);
-                $( if match_message_version!(version,$( $version )*) {
+                $( if $crate::match_message_version!(version,$( $version )*) {
                     fields.insert(<$field_type as $crate::field::Field>::tag(),<$field_type as $crate::field::Field>::rule());
                 } )*
 
@@ -319,7 +319,7 @@ macro_rules! define_message {
 
             fn required_fields(version: $crate::message_version::MessageVersion) -> $crate::message::FieldHashSet {
                 let mut result = ::std::collections::HashSet::with_capacity_and_hasher($message_name::required_field_count(version) * 1,$crate::hash::BuildFieldHasher);
-                $( if match_message_version!(version,$( $version )*) && $field_required {
+                $( if $crate::match_message_version!(version,$( $version )*) && $field_required {
                     result.insert(<$field_type as $crate::field::Field>::tag());
                 } )*
 
@@ -408,7 +408,7 @@ macro_rules! define_message {
 
             fn read_body(&self,fix_version: $crate::fix_version::FIXVersion,message_version: $crate::message_version::MessageVersion,buf: &mut Vec<u8>) -> usize {
                 let mut byte_count: usize = 0;
-                $( if match_message_version!(message_version,$( $version )*) {
+                $( if $crate::match_message_version!(message_version,$( $version )*) {
                     byte_count += <$field_type as $crate::field::Field>::read(&self.$field_name,fix_version,message_version,buf,$field_required);
                 } )*
 

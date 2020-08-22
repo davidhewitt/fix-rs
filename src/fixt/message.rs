@@ -88,7 +88,7 @@ macro_rules! define_fixt_message {
         } { $( $field_required, $field_name : $field_type [$( $version )*] $(=> REQUIRED_WHEN $required_when_expr)*, )* } );
     };
     ( $message_name:ident $( : $message_type:expr => )* { $( $header_field_required:expr, $header_field_name:ident : $header_field_type:ty [$( $header_version:tt )*] $(=> REQUIRED_WHEN $header_required_when_expr:expr)* ),* } { $( $field_required:expr, $field_name:ident : $field_type:ty [$( $version:tt )*] $(=> REQUIRED_WHEN $required_when_expr:expr)* ),* $(),* } ) => {
-        define_message!($message_name $( : $message_type => )* {
+        $crate::define_message!($message_name $( : $message_type => )* {
             //Standard Header
             //Note: BeginStr, BodyLength, and MsgType are built into parser.
             $crate::message::REQUIRED, sender_comp_id: $crate::dictionary::fields::SenderCompID [FIX40..], //Must be first here to be 4th field when serialized.

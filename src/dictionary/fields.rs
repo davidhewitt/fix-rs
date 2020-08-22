@@ -36,7 +36,7 @@ use crate::dictionary::field_types::other::{
     StrikePriceBoundaryMethodFieldType, StrikePriceDeterminationMethodFieldType,
     TimeInForceFieldType, UnderlyingCashTypeFieldType, UnderlyingFXRateCalcFieldType,
     UnderlyingPriceDeterminationMethodFieldType, UnderlyingSettlementTypeFieldType,
-    UnitOfMeasureFieldType, ValuationMethodFieldType,
+    UserRequestFieldType, UnitOfMeasureFieldType, ValuationMethodFieldType,
 };
 use crate::field_tag;
 use crate::fix_version::FIXVersion;
@@ -284,6 +284,8 @@ define_fields!(
     NoUnderlyingStips: RepeatingGroupFieldType<UnderlyingStipulation> = 887,
     UnderlyingStipType: StipulationTypeFieldType = 888,
     UnderlyingStipValue: StringFieldType = 889, //TODO: Parsable expression.
+    UserRequestID: StringFieldType = 923,
+    UserRequestType: UserRequestFieldType = 924,
     NewPassword: StringFieldType = 925,
     UnderlyingStrikeCurrency: CurrencyFieldType = 941,
     LegStrikeCurrency: CurrencyFieldType = 942,

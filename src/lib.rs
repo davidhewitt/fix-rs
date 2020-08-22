@@ -23,13 +23,6 @@
 //!
 //! [1]: http://www.fixtradingcommunity.org/
 
-extern crate chrono;
-#[macro_use]
-extern crate fix_rs_macros;
-extern crate mio;
-extern crate phf;
-extern crate time;
-
 pub mod byte_buffer;
 #[macro_use]
 pub mod fixt;
@@ -51,3 +44,5 @@ mod token_generator;
 //Dictionary is put last because it needs the above macros.
 #[macro_use]
 pub mod dictionary;
+
+pub use fix_rs_macros::{BuildMessage, BuildField};

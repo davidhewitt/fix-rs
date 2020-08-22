@@ -1216,3 +1216,13 @@ define_enum_field_type!(
     },
     FIELD_TYPE [NOT_REQUIRED,MUST_BE_STRING] ValuationMethodFieldType
 );
+
+define_enum_field_type!(
+    FIELD UserRequestType {
+        LogOnUser => b"1",
+        LogOffUser => b"2",
+        ChangePasswordForUser => b"3",
+        RequestIndividualUserStatus => b"4",
+    },
+    FIELD_TYPE [REQUIRED,MUST_BE_INT] UserRequestFieldType
+);

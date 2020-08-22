@@ -562,7 +562,7 @@ impl InternalConnection {
                 log::debug!(
                     "Read inbound message: {}",
                     std::str::from_utf8(
-                        &connection.inbound_buffer.bytes[connection.inbound_buffer.valid_bytes_begin..bytes_parsed]
+                        &connection.inbound_buffer.bytes()[..bytes_parsed]
                     ).unwrap().replace('\x01', "|")
                 );
                 connection.inbound_buffer.consume(bytes_parsed);

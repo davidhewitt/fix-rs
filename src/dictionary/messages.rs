@@ -255,9 +255,9 @@ define_fixt_message!(NewOrderSingle: b"D" => { //TODO: All version info for this
     NOT_REQUIRED, trdg_ses_grp: NoTrdgSesGrp,
     NOT_REQUIRED, process_code: ProcessCode,
     REQUIRED, instrument: NoInstrument,*/
-        REQUIRED, symbol: Symbol [FIX40..], //TODO: Part of the Instrument block.
-        REQUIRED, security_id: SecurityID [FIX40..], //TODO: Part of the Instrument block.
-        REQUIRED, security_id_source: SecurityIDSource [FIX40..], //TODO: Part of the Instrument block.
+    REQUIRED, symbol: Symbol [FIX40..], //TODO: Part of the Instrument block.
+    NOT_REQUIRED, security_id: SecurityID [FIX40..], //TODO: Part of the Instrument block.
+    NOT_REQUIRED, security_id_source: SecurityIDSource [FIX40..], //TODO: Part of the Instrument block.
     /*NOT_REQUIRED, financing_details: NoFinancingDetails,
     NOT_REQUIRED, und_instrmt_grp: NoUndInstrmtGrp,
     NOT_REQUIRED, prev_close_px: PrevClosePx,*/

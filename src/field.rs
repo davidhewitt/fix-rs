@@ -34,7 +34,7 @@ pub trait Field {
 #[macro_export]
 macro_rules! define_fields {
     ( $( $field_name:ident : $field_type:ty = $tag:expr $( => $rule:expr )? ),* $(),* ) => { $(
-        #[derive(BuildField)]
+        #[derive($crate::BuildField)]
         pub struct $field_name {
             #[tag=$tag]
             _tag_gen: ::std::marker::PhantomData<()>,
