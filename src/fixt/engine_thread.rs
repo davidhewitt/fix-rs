@@ -496,9 +496,12 @@ impl InternalConnection {
                 //necessarily acknowledged.
             }
 
-
-
-            log::debug!("writing message: {}", std::str::from_utf8(&self.outbound_buffer.bytes).unwrap().replace('\x01', "|"));
+            log::debug!(
+                "writing message: {}",
+                std::str::from_utf8(&self.outbound_buffer.bytes)
+                    .unwrap()
+                    .replace('\x01', "|")
+            );
             // log::debug!("message bytes: {:?}", &self.outbound_buffer.bytes);
 
             //Send data. Simple.
@@ -561,9 +564,9 @@ impl InternalConnection {
                 assert!(bytes_parsed > 0);
                 log::debug!(
                     "Read inbound message: {}",
-                    std::str::from_utf8(
-                        &connection.inbound_buffer.bytes()[..bytes_parsed]
-                    ).unwrap().replace('\x01', "|")
+                    std::str::from_utf8(&connection.inbound_buffer.bytes()[..bytes_parsed])
+                        .unwrap()
+                        .replace('\x01', "|")
                 );
                 connection.inbound_buffer.consume(bytes_parsed);
 

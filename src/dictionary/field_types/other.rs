@@ -1224,5 +1224,17 @@ define_enum_field_type!(
         ChangePasswordForUser => b"3",
         RequestIndividualUserStatus => b"4",
     },
-    FIELD_TYPE [REQUIRED,MUST_BE_INT] UserRequestFieldType
+    FIELD_TYPE [REQUIRED,MUST_BE_INT] UserRequestTypeFieldType
+);
+
+define_enum_field_type!(
+    FIELD UserStatus {
+        LoggedIn => b"1",
+        NotLoggedIn => b"2",
+        UserNotRecognised => b"3",
+        PasswordIncorrect => b"4",
+        PasswordChanged => b"5",
+        Other => b"6",
+    },
+    FIELD_TYPE [NOT_REQUIRED,MUST_BE_INT] UserStatusFieldType
 );

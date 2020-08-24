@@ -45,4 +45,4 @@ mod token_generator;
 #[macro_use]
 pub mod dictionary;
 
-pub use fix_rs_macros::{BuildMessage, BuildField};
+pub use fix_rs_macros::{BuildField, BuildMessage};

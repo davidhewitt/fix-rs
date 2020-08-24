@@ -242,7 +242,8 @@ macro_rules! match_message_version {
 
     ( $version:ident, $minimum_version:tt .. $maximum_version:tt ) => {
         if $version.as_value() >= $crate::symbol_to_message_version!($minimum_version).as_value()
-            && $version.as_value() <= $crate::symbol_to_message_version!($maximum_version).as_value()
+            && $version.as_value()
+                <= $crate::symbol_to_message_version!($maximum_version).as_value()
         {
             true
         } else {

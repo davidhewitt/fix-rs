@@ -325,3 +325,20 @@ define_fixt_message!(NewOrderSingle: b"D" => { //TODO: All version info for this
     NOT_REQUIRED, ref_order_id: RefOrderID,
     NOT_REQUIRED, ref_order_id_source: RefOrderIDSource,*/
 });
+
+define_fixt_message!(UserRequest: b"BE" => {
+    REQUIRED, user_request_id: UserRequestID [FIX44..],
+    REQUIRED, user_request_type: UserRequestType [FIX44..],
+    REQUIRED, username: Username [FIX44..],
+    NOT_REQUIRED, password: Password [FIX44..],
+    NOT_REQUIRED, new_password: NewPassword [FIX44..],
+    NOT_REQUIRED, raw_data_length: RawDataLength [FIX44..],
+    NOT_REQUIRED, raw_data: RawData [FIX44..],
+});
+
+define_fixt_message!(UserResponse: b"BF" => {
+    REQUIRED, user_request_id: UserRequestID [FIX44..],
+    REQUIRED, username: Username [FIX44..],
+    NOT_REQUIRED, user_status: UserStatus [FIX44..],
+    NOT_REQUIRED, user_status_text: UserStatusText [FIX44..],
+});
