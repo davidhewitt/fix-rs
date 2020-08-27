@@ -28,7 +28,7 @@ use crate::field::Field;
 use crate::field_tag::FieldTag;
 use crate::field_type::FieldType;
 use crate::fix_version::FIXVersion;
-use crate::fixt::message::{BuildFIXTMessage, FIXTMessage};
+use crate::fixt::message::{BuildFIXTMessage, FIXTMessage, TagValue};
 use crate::hash::BuildFieldHasher;
 use crate::message::{BuildMessage, FieldHashMap, FieldHashSet, Message, Meta, SetValueError};
 use crate::message_version::MessageVersion;
@@ -37,13 +37,13 @@ use crate::rule::Rule;
 //TODO: Support configuration settings for things like MAX_VALUE_LENGTH, MAX_BODY_LENGTH,
 //      MAX_TAG_LENGTH, the size of a "Length" and other types.
 
-const BEGINSTR_TAG_BYTES: &'static [u8] = b"8";
-const BEGINSTR_TAG: FieldTag = FieldTag(8);
-const BODYLENGTH_TAG_BYTES: &'static [u8] = b"9";
-const BODYLENGTH_TAG: FieldTag = FieldTag(9);
-const MSGTYPE_TAG: FieldTag = FieldTag(35);
-const CHECKSUM_TAG_BYTES: &'static [u8] = b"10";
-const CHECKSUM_TAG: FieldTag = FieldTag(10);
+pub const BEGINSTR_TAG_BYTES: &'static [u8] = b"8";
+pub const BEGINSTR_TAG: FieldTag = FieldTag(8);
+pub const BODYLENGTH_TAG_BYTES: &'static [u8] = b"9";
+pub const BODYLENGTH_TAG: FieldTag = FieldTag(9);
+pub const MSGTYPE_TAG: FieldTag = FieldTag(35);
+pub const CHECKSUM_TAG_BYTES: &'static [u8] = b"10";
+pub const CHECKSUM_TAG: FieldTag = FieldTag(10);
 
 pub enum ParseError {
     MissingRequiredTag(FieldTag, Box<dyn FIXTMessage + Send>), //Required tag was not included in message.
@@ -75,6 +75,69 @@ pub enum ParseError {
 
 fn tag_to_string(tag: &[u8]) -> String {
     String::from_utf8_lossy(tag).into_owned()
+}
+
+pub fn parse_fix_and_message_version(version_bytes: &[u8], default_message_version: MessageVersion) -> Result<(FIXVersion, MessageVersion), ParseError>  {
+    //Figure out what message version should be supported while parsing.
+    match version_bytes {
+        FIX_4_0_BEGIN_STRING => Ok((FIXVersion::FIX_4_0, MessageVersion::FIX40)),
+        FIX_4_1_BEGIN_STRING => Ok((FIXVersion::FIX_4_1, MessageVersion::FIX41)),
+        FIX_4_2_BEGIN_STRING => Ok((FIXVersion::FIX_4_2, MessageVersion::FIX42)),
+        FIX_4_3_BEGIN_STRING => Ok((FIXVersion::FIX_4_3, MessageVersion::FIX43)),
+        FIX_4_4_BEGIN_STRING => Ok((FIXVersion::FIX_4_4, MessageVersion::FIX44)),
+        //If no per-message version is specified, FIXT.1.1 and higher should fall back to
+        //some specified default. For connection initiators, this must be specified during
+        //Logon. For connection acceptors, this should start with the highest supported
+        //version and then be lowered to the initiator's version.
+        FIXT_1_1_BEGIN_STRING => Ok((FIXVersion::FIXT_1_1, default_message_version)),
+        _ => Err(ParseError::WrongFormatTag(BEGINSTR_TAG)),
+    }
+}
+
+pub fn parse_body_length(body_length_bytes: &[u8]) -> Result<u64, ParseError> {
+    ascii_to_integer(body_length_bytes).map_err(|_| ParseError::BodyLengthNotNumber)
+}
+
+pub fn parse_checksum(checksum_bytes: &[u8]) -> Result<u8, ParseError> {
+    ascii_to_integer(checksum_bytes).map_err(|_| ParseError::ChecksumWrongFormat)
+}
+
+pub fn parse_meta(tags: &[TagValue], default_message_version: MessageVersion) -> Result<Meta, ParseError> {
+    let mut begin_string = None;
+    let mut message_version = None;
+    let mut body_length = None;
+    let mut checksum = None;
+
+    for tag in tags {
+        match tag.tag {
+            BEGINSTR_TAG_BYTES => {
+                let pair = parse_fix_and_message_version(tag.value, default_message_version)?;
+                begin_string = Some(pair.0);
+                message_version = Some(pair.1);
+            },
+            BODYLENGTH_TAG_BYTES => body_length = Some(parse_body_length(tag.value)?),
+            CHECKSUM_TAG_BYTES => checksum = Some(parse_checksum(tag.value)?),
+            _ => { }
+        }
+    }
+
+    Ok(Meta {
+        begin_string: begin_string.expect("missing begin_string"),
+        message_version: message_version.expect("missing message_version"),
+        body_length: body_length.expect("missing body_length"),
+        checksum: checksum.expect("missing checksum"),
+    })
+}
+
+pub fn set_tag_values(message: &mut dyn FIXTMessage, tags: &[TagValue]) {
+    for tag in tags {
+        match FieldTag::from(tag.tag) {
+            BEGINSTR_TAG | BODYLENGTH_TAG | CHECKSUM_TAG | MSGTYPE_TAG => {},
+            field_tag => if let Err(e) = message.set_value(field_tag, tag.value) {
+                panic!("failed to set tag {:?} to value {:?}: {:?}", field_tag, unsafe { std::str::from_utf8_unchecked(tag.value) }, e);
+            },
+        }
+    }
 }
 
 impl fmt::Display for ParseError {
@@ -224,10 +287,10 @@ enum MessageEnd {
     No,
 }
 
-fn ascii_to_integer<T: FromStr>(ascii_bytes: &Vec<u8>) -> Result<T, <T as FromStr>::Err> {
+fn ascii_to_integer<T: FromStr>(ascii_bytes: &[u8]) -> Result<T, <T as FromStr>::Err> {
     //Using String::from_utf8_lossy is faster than using str::from_utf8_unchecked() according to
     //the benchmark.
-    T::from_str(String::from_utf8_lossy(ascii_bytes.as_slice()).borrow())
+    T::from_str(String::from_utf8_lossy(ascii_bytes).borrow())
 }
 
 fn set_message_value<T: Message + ?Sized>(
@@ -595,13 +658,10 @@ impl Parser {
             checksum = checksum.overflowing_sub(*c).0;
         }
 
-        match ascii_to_integer::<u8>(checksum_bytes) {
-            Ok(stated_checksum) => {
-                if checksum != stated_checksum {
-                    return Err(ParseError::ChecksumDoesNotMatch(checksum, stated_checksum));
-                }
-            }
-            Err(_) => return Err(ParseError::ChecksumWrongFormat),
+        let stated_checksum = parse_checksum(checksum_bytes)?;
+
+        if checksum != stated_checksum {
+            return Err(ParseError::ChecksumDoesNotMatch(checksum, stated_checksum));
         }
 
         self.checksum = checksum;
@@ -829,19 +889,7 @@ impl Parser {
             }
 
             //Figure out what message version should be supported while parsing.
-            let (fix_version, message_version) = match &self.current_bytes[..] {
-                FIX_4_0_BEGIN_STRING => (FIXVersion::FIX_4_0, MessageVersion::FIX40),
-                FIX_4_1_BEGIN_STRING => (FIXVersion::FIX_4_1, MessageVersion::FIX41),
-                FIX_4_2_BEGIN_STRING => (FIXVersion::FIX_4_2, MessageVersion::FIX42),
-                FIX_4_3_BEGIN_STRING => (FIXVersion::FIX_4_3, MessageVersion::FIX43),
-                FIX_4_4_BEGIN_STRING => (FIXVersion::FIX_4_4, MessageVersion::FIX44),
-                //If no per-message version is specified, FIXT.1.1 and higher should fall back to
-                //some specified default. For connection initiators, this must be specified during
-                //Logon. For connection acceptors, this should start with the highest supported
-                //version and then be lowered to the initiator's version.
-                FIXT_1_1_BEGIN_STRING => (FIXVersion::FIXT_1_1, self.default_message_version),
-                _ => return Err(ParseError::WrongFormatTag(BEGINSTR_TAG)),
-            };
+            let (fix_version, message_version) = parse_fix_and_message_version(&self.current_bytes[..], self.default_message_version)?;
             self.fix_version = fix_version;
             self.message_version = message_version;
             self.current_bytes.clear();
@@ -852,13 +900,9 @@ impl Parser {
 
             //Body length must be a valid positive number or else the rest of the message
             //is garbage.
-            match ascii_to_integer::<u64>(&self.current_bytes) {
-                Ok(length) => {
-                    self.body_length = length;
-                    self.body_remaining_length = length;
-                }
-                Err(_) => return Err(ParseError::BodyLengthNotNumber),
-            }
+            let length = parse_body_length(&self.current_bytes)?;
+            self.body_length = length;
+            self.body_remaining_length = length;
 
             //Messages that are too long are outright rejected. The remaining bytes will be skipped
             //on the next parse because they are considered garbled. If the actual body length is
@@ -1160,13 +1204,11 @@ impl Parser {
 
                 //Save message.
                 let is_logon_message = self.current_message.msg_type() == Logon::msg_type();
-                self.messages.push(mem::replace(
-                    &mut self.current_message,
-                    Box::new(NullMessage {}),
-                ));
+                // self.messages.push(mem::replace(
+                //     &mut self.current_message,
+                //     Box::new(NullMessage {}),
+                // ));
 
-                //Prepare for the next message.
-                self.reset_parser();
                 *index += 1;
 
                 //Stop processing after Logon message so owner of parser can use the message to
@@ -1221,8 +1263,31 @@ impl Parser {
     }
 
     fn parse_private(&mut self, index: &mut usize, message_bytes: &[u8]) -> Result<(), ParseError> {
+        let mut collected_tags = Vec::new();
+
         //Start by searching for the start of a message unless resuming.
         self.scan_for_message(index, message_bytes);
+
+        macro_rules! build_message {
+            () => {{
+                unsafe {
+                    let tag_strings: Vec<_> = collected_tags.iter().map(|tv| format!("{}={}", std::str::from_utf8_unchecked(tv.tag), std::str::from_utf8_unchecked(tv.value))).collect();
+                    log::debug!("Parsed message contents: {}|", tag_strings.join("|"));
+                }
+
+                let ty = match self.message_dictionary.get(&self.message_type[..]) {
+                    Some(ty) => ty,
+                    None => panic!("message type missing: {}", unsafe { std::str::from_utf8_unchecked(&self.message_type[..]) })
+                };
+                self.messages.push(ty.build_from_tags(&collected_tags, self.default_message_version));
+                //Prepare for the next message.
+                collected_tags.clear();
+                self.reset_parser();
+            }}
+        }
+
+        let mut tag_start = *index - 2;
+        let mut value_start = *index;
 
         //Resume loading any bytes using the fast track if we ran out in the last call.
         self.fast_track_read_bytes(index, &message_bytes)?;
@@ -1239,21 +1304,30 @@ impl Parser {
             match c {
                 //Byte indicates a tag has finished being read.
                 b'=' if self.current_tag.is_empty() => {
+                    value_start = *index + 1;
                     self.match_tag_end(index, message_bytes)?;
                 }
                 //Byte indicates a vale has finished being read. Now both the tag and value are known.
                 b'\x01' => {
+                    collected_tags.push(TagValue {
+                        tag: &message_bytes[tag_start..value_start-1],
+                        value: &message_bytes[value_start..*index]
+                    });
+                    tag_start = *index + 1;
+
                     //SOH
                     match self.match_value_end(index, message_bytes) {
-                        Ok(ref result) if *result == MessageEnd::Yes => {
+                        Ok(result) if result == MessageEnd::Yes => {
                             //Message finished and index was already forwaded to the end of
                             //message_bytes or the beginning of the next message.
+                            build_message!();
                             continue;
                         }
-                        Ok(ref result) if *result == MessageEnd::YesButStop => {
+                        Ok(result) if result == MessageEnd::YesButStop => {
                             //Message finished but parsing has been suspended to handle a special
                             //case.
-                            return Ok(());
+                            build_message!();
+                            break;
                         }
                         Err(e) => {
                             //An error occurred. Manually move index forward so this byte isn't

@@ -201,6 +201,14 @@ pub fn build_message(input: TokenStream) -> TokenStream {
                 fn build(&self) -> Box<fixt::message::FIXTMessage + Send> {
                     Box::new(#message_name::new())
                 }
+
+                fn build_from_tags(&self, tags: &[fixt::message::TagValue], default_message_version: message_version::MessageVersion) -> Box<fixt::message::FIXTMessage + Send> {
+                    let meta = fix::parse_meta(tags, default_message_version).expect("failed to parse meta");
+                    let mut msg = #message_name::new();
+                    msg.meta = Some(meta);
+                    fix::set_tag_values(&mut msg, tags);
+                    Box::new(msg)
+                }
             }
 
             impl fixt::message::FIXTMessageBuildable for #message_name {

@@ -53,6 +53,7 @@ pub struct Meta {
     pub checksum: u8,
 }
 
+#[derive(Debug)]
 pub enum SetValueError {
     WrongFormat,
     OutOfRange,
@@ -60,7 +61,7 @@ pub enum SetValueError {
 
 pub trait Message {
     fn conditional_required_fields(&self, version: MessageVersion) -> Vec<FieldTag>;
-    fn meta(&self) -> &Option<Meta>;
+    fn meta(&self) -> Option<&Meta>;
     fn set_meta(&mut self, meta: Meta);
     fn set_value(&mut self, key: FieldTag, value: &[u8]) -> Result<(), SetValueError>;
     fn set_groups(&mut self, key: FieldTag, groups: Vec<Box<dyn Message>>) -> bool;
@@ -357,8 +358,8 @@ macro_rules! define_message {
                 result
             }
 
-            fn meta(&self) -> &Option<$crate::message::Meta> {
-                &self.meta
+            fn meta(&self) -> Option<&$crate::message::Meta> {
+                self.meta.as_ref()
             }
 
             fn set_meta(&mut self,meta: $crate::message::Meta) {

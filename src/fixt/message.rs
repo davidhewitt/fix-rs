@@ -20,9 +20,17 @@ use crate::fix_version::FIXVersion;
 use crate::message::{BuildMessage, Message};
 use crate::message_version::MessageVersion;
 
+#[derive(Debug)]
+pub struct TagValue<'a> {
+    pub tag: &'a [u8],
+    pub value: &'a [u8],
+}
+
 pub trait BuildFIXTMessage: BuildMessage {
     fn new_into_box(&self) -> Box<dyn BuildFIXTMessage + Send>;
     fn build(&self) -> Box<dyn FIXTMessage + Send>;
+
+    fn build_from_tags(&self, tags: &[TagValue], default_message_version: MessageVersion) -> Box<dyn FIXTMessage + Send>;
 }
 
 pub trait FIXTMessageBuildable {
@@ -53,20 +61,22 @@ pub trait FIXTMessage: Message {
 
 impl fmt::Debug for dyn FIXTMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (fix_version, message_version) = self.meta().map(|m| (m.begin_string, m.message_version)).unwrap_or((FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2));
         write!(
             f,
             "{}",
-            Message::debug(self, FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2)
+            Message::debug(self, fix_version, message_version)
         )
     }
 }
 
 impl fmt::Debug for dyn FIXTMessage + Send {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (fix_version, message_version) = self.meta().map(|m| (m.begin_string, m.message_version)).unwrap_or((FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2));
         write!(
             f,
             "{}",
-            Message::debug(self, FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2)
+            Message::debug(self, fix_version, message_version)
         )
     }
 }

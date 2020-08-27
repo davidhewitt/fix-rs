@@ -16,6 +16,7 @@ use crate::field::Field;
 use crate::field_tag::{self, FieldTag};
 use crate::field_type::FieldType;
 use crate::fix_version::FIXVersion;
+use crate::fix;
 use crate::fixt;
 use crate::fixt::message::FIXTMessage;
 use crate::message::{self, Message, Meta, SetValueError, NOT_REQUIRED, REQUIRED};
@@ -28,7 +29,7 @@ impl Message for NullMessage {
         unimplemented!();
     }
 
-    fn meta(&self) -> &Option<Meta> {
+    fn meta(&self) -> Option<&Meta> {
         unimplemented!();
     }
 
