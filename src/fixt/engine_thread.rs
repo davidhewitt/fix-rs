@@ -562,12 +562,6 @@ impl InternalConnection {
                     connection.parser.parse(connection.inbound_buffer.bytes());
 
                 assert!(bytes_parsed > 0);
-                log::debug!(
-                    "Read inbound message: {}",
-                    std::str::from_utf8(&connection.inbound_buffer.bytes()[..bytes_parsed])
-                        .unwrap()
-                        .replace('\x01', "|")
-                );
                 connection.inbound_buffer.consume(bytes_parsed);
 
                 //Retain order by extracting messages and then the error from parser.

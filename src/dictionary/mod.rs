@@ -20,7 +20,7 @@ use crate::fixt::message::BuildFIXTMessage;
 #[macro_export]
 macro_rules! define_dictionary {
     ( $( $msg:ident ),* $(),* ) => {
-        fn build_dictionary() -> std::collections::HashMap<&'static [u8],Box<$crate::fixt::message::BuildFIXTMessage + Send>> {
+        pub fn build_dictionary() -> std::collections::HashMap<&'static [u8],Box<$crate::fixt::message::BuildFIXTMessage + Send>> {
             let mut message_dictionary: std::collections::HashMap<&'static [u8],Box<$crate::fixt::message::BuildFIXTMessage + Send>> = std::collections::HashMap::new();
 
             use $crate::fixt::message::FIXTMessageBuildable;
@@ -32,14 +32,12 @@ macro_rules! define_dictionary {
             message_dictionary
         }
 
-        #[allow(dead_code)]
-        enum MessageEnum
+        pub enum MessageEnum
         {
             $( $msg(Box<$msg>), )*
-        };
+        }
 
-        #[allow(dead_code)]
-        fn message_to_enum(message: Box<$crate::fixt::message::FIXTMessage>) -> MessageEnum {
+        pub fn message_to_enum(message: Box<$crate::fixt::message::FIXTMessage>) -> MessageEnum {
             if false {
             }
             $( else if message.as_any().is::<$msg>() {

@@ -46,3 +46,6 @@ mod token_generator;
 pub mod dictionary;
 
 pub use fix_rs_macros::{BuildField, BuildMessage};
+
+mod generate;
+pub use generate::generate_dictionary;
