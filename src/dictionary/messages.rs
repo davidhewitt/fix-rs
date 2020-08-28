@@ -16,9 +16,9 @@ use crate::field::Field;
 use crate::field_tag::{self, FieldTag};
 use crate::field_type::FieldType;
 use crate::fix_version::FIXVersion;
-use crate::fix;
+use crate::fix::{self, parse_meta};
 use crate::fixt;
-use crate::fixt::message::FIXTMessage;
+use crate::fixt::message::{FIXTMessage, TagValue};
 use crate::message::{self, Message, Meta, SetValueError, NOT_REQUIRED, REQUIRED};
 use crate::message_version::{self, MessageVersion};
 
@@ -122,6 +122,120 @@ impl FIXTMessage for NullMessage {
         _target_comp_id: <<TargetCompID as Field>::Type as FieldType>::Type,
     ) {
         unimplemented!();
+    }
+}
+
+pub struct UnrecognisedMessage {
+    meta: Meta,
+    fields: Vec<(FieldTag, Vec<u8>)>,
+}
+
+impl Message for UnrecognisedMessage {
+    fn conditional_required_fields(&self, _version: MessageVersion) -> Vec<FieldTag> {
+        unimplemented!();
+    }
+
+    fn meta(&self) -> Option<&Meta> {
+        Some(&self.meta)
+    }
+
+    fn set_meta(&mut self, _meta: Meta) {
+        unimplemented!();
+    }
+
+    fn set_value(&mut self, _key: FieldTag, _value: &[u8]) -> Result<(), SetValueError> {
+        unimplemented!();
+    }
+
+    fn set_groups(&mut self, _key: FieldTag, _group: Vec<Box<dyn Message>>) -> bool {
+        unimplemented!();
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        unimplemented!();
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        unimplemented!();
+    }
+
+    fn new_into_box(&self) -> Box<dyn Message + Send> {
+        unimplemented!();
+    }
+
+    fn msg_type_header(&self) -> &'static [u8] {
+        b""
+    }
+
+    fn read_body(
+        &self,
+        _fix_version: FIXVersion,
+        _message_version: MessageVersion,
+        _buf: &mut Vec<u8>,
+    ) -> usize {
+        unimplemented!();
+    }
+}
+
+impl FIXTMessage for UnrecognisedMessage {
+    fn new_into_box(&self) -> Box<dyn FIXTMessage + Send> {
+        unimplemented!();
+    }
+
+    fn msg_type(&self) -> &'static [u8] {
+        unimplemented!();
+    }
+
+    fn msg_seq_num(&self) -> <<MsgSeqNum as Field>::Type as FieldType>::Type {
+        unimplemented!();
+    }
+
+    fn sender_comp_id(&self) -> &<<SenderCompID as Field>::Type as FieldType>::Type {
+        unimplemented!();
+    }
+
+    fn target_comp_id(&self) -> &<<TargetCompID as Field>::Type as FieldType>::Type {
+        unimplemented!();
+    }
+
+    fn is_poss_dup(&self) -> bool {
+        unimplemented!();
+    }
+
+    fn set_is_poss_dup(&mut self, _is_poss_dup: bool) {
+        unimplemented!();
+    }
+
+    fn sending_time(&self) -> <<SendingTime as Field>::Type as FieldType>::Type {
+        unimplemented!();
+    }
+
+    fn orig_sending_time(&self) -> <<OrigSendingTime as Field>::Type as FieldType>::Type {
+        unimplemented!();
+    }
+
+    fn set_orig_sending_time(
+        &mut self,
+        _orig_sending_time: <<OrigSendingTime as Field>::Type as FieldType>::Type,
+    ) {
+        unimplemented!();
+    }
+
+    fn setup_fixt_session_header(
+        &mut self,
+        _msg_seq_num: Option<<<MsgSeqNum as Field>::Type as FieldType>::Type>,
+        _sender_comp_id: <<SenderCompID as Field>::Type as FieldType>::Type,
+        _target_comp_id: <<TargetCompID as Field>::Type as FieldType>::Type,
+    ) {
+        unimplemented!();
+    }
+}
+
+impl UnrecognisedMessage {
+    pub fn new(tags: &[TagValue], default_message_version: MessageVersion) -> Self {
+        let meta = parse_meta(tags, default_message_version).expect("failed to parse meta");
+        let fields = tags.iter().map(|t| (FieldTag::from(t.tag), t.value.to_owned())).collect();
+        Self { meta, fields }
     }
 }
 

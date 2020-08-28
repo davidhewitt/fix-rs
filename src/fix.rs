@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_assignments)]
+
 // Copyright 2016 James Bendig. See the COPYRIGHT file at the top-level
 // directory of this distribution.
 //
@@ -23,7 +25,7 @@ use crate::constant::{
 };
 use crate::dictionary::field_types::other::DefaultApplVerIDFieldType;
 use crate::dictionary::fields::{ApplVerID, SenderCompID, TargetCompID};
-use crate::dictionary::messages::{Logon, NullMessage};
+use crate::dictionary::messages::{Logon, NullMessage, UnrecognisedMessage};
 use crate::field::Field;
 use crate::field_tag::FieldTag;
 use crate::field_type::FieldType;
@@ -130,6 +132,7 @@ pub fn parse_meta(tags: &[TagValue], default_message_version: MessageVersion) ->
 }
 
 pub fn set_tag_values(message: &mut dyn FIXTMessage, tags: &[TagValue]) {
+    // FIXME: probably want to check tag values afterwards
     for tag in tags {
         match FieldTag::from(tag.tag) {
             BEGINSTR_TAG | BODYLENGTH_TAG | CHECKSUM_TAG | MSGTYPE_TAG => {},
@@ -313,6 +316,18 @@ fn set_message_value<T: Message + ?Sized>(
 
     Ok(())
 }
+
+
+// NOTES FOR NEXT TIME:
+// - Parser shouldn't take message dictionary, instead should just validate header, body, & checksum.
+// - Parser should instead just spit out the following ParsedMessage
+// - Engine can then parse admin message bodies and handle them
+// -
+
+// pub struct ParsedMessage {
+//     meta: Meta,
+//     body: Vec<[u8]>
+// }
 
 pub struct Parser {
     message_dictionary: HashMap<&'static [u8], Box<dyn BuildFIXTMessage + Send>>,
@@ -928,9 +943,9 @@ impl Parser {
             //supported and which are required. Newer FIX versions require more complicated
             //handling that must be put off until after receiving the sixth field.
             self.message_type = self.current_bytes.clone();
-            if self.fix_version != FIXVersion::FIXT_1_1 {
-                self.prepare_for_message()?;
-            }
+            // if self.fix_version != FIXVersion::FIXT_1_1 {
+            //     self.prepare_for_message()?;
+            // }
         } else if self.found_tag_count == 3 && self.fix_version == FIXVersion::FIXT_1_1 {
             //FIXT.1.1 requires the fourth field to be SenderCompID. Older FIX versions use generic
             //field handling because the order doesn't matter but the field is stil required.
@@ -975,35 +990,35 @@ impl Parser {
 
                 //Now that the message version has been determined, prepare a collection of which
                 //fields are supported and which are required.
-                self.prepare_for_message()?;
+                // self.prepare_for_message()?;
 
                 //Start the message by filling out the SenderCompID and TargetCompID portions of
                 //message. These fields are always required for FIXT.1.1 messages.
-                set_message_value(
-                    &mut *self.current_message,
-                    SenderCompID::tag(),
-                    &self.sender_comp_id[..],
-                )?;
-                self.remaining_fields.remove(&SenderCompID::tag());
-                self.remaining_required_fields.remove(&SenderCompID::tag());
-                set_message_value(
-                    &mut *self.current_message,
-                    TargetCompID::tag(),
-                    &self.target_comp_id[..],
-                )?;
-                self.remaining_fields.remove(&TargetCompID::tag());
-                self.remaining_required_fields.remove(&TargetCompID::tag());
+                // set_message_value(
+                //     &mut *self.current_message,
+                //     SenderCompID::tag(),
+                //     &self.sender_comp_id[..],
+                // )?;
+                // self.remaining_fields.remove(&SenderCompID::tag());
+                // self.remaining_required_fields.remove(&SenderCompID::tag());
+                // set_message_value(
+                //     &mut *self.current_message,
+                //     TargetCompID::tag(),
+                //     &self.target_comp_id[..],
+                // )?;
+                // self.remaining_fields.remove(&TargetCompID::tag());
+                // self.remaining_required_fields.remove(&TargetCompID::tag());
 
                 //Mark ApplVerID as found so we produce an error if it's encountered anywhere else
                 //in the message.
-                if self.current_tag == ApplVerID::tag() {
-                    set_message_value(
-                        &mut *self.current_message,
-                        ApplVerID::tag(),
-                        &self.current_bytes[..],
-                    )?;
-                }
-                self.remaining_fields.remove(&ApplVerID::tag());
+                // if self.current_tag == ApplVerID::tag() {
+                //     set_message_value(
+                //         &mut *self.current_message,
+                //         ApplVerID::tag(),
+                //         &self.current_bytes[..],
+                //     )?;
+                // }
+                // self.remaining_fields.remove(&ApplVerID::tag());
             }
 
             //Make sure checksum checks out when done reading a message.
@@ -1015,195 +1030,195 @@ impl Parser {
             };
 
             //Store tag with value.
-            let mut tag_in_group = false;
-            let mut group_end = false;
-            loop {
-                let mut some_rule = None;
-                if let Some(ref mut tag_rule_mode) = self.tag_rule_mode_stack.last_mut() {
-                    if let TagRuleMode::RepeatingGroups(ref mut prgs) = ***tag_rule_mode {
-                        if self.current_tag == prgs.first_tag {
-                            //Make sure previous group has all required tags specified
-                            //before we start a new one.
-                            prgs.check_last_group_complete(
-                                self.message_version,
-                                &mut self.missing_tag,
-                                &mut self.missing_conditional_tag,
-                            );
+            // let mut tag_in_group = false;
+            // let mut group_end = false;
+            // loop {
+            //     let mut some_rule = None;
+            //     if let Some(ref mut tag_rule_mode) = self.tag_rule_mode_stack.last_mut() {
+            //         if let TagRuleMode::RepeatingGroups(ref mut prgs) = ***tag_rule_mode {
+            //             if self.current_tag == prgs.first_tag {
+            //                 //Make sure previous group has all required tags specified
+            //                 //before we start a new one.
+            //                 prgs.check_last_group_complete(
+            //                     self.message_version,
+            //                     &mut self.missing_tag,
+            //                     &mut self.missing_conditional_tag,
+            //                 );
 
-                            //Begin a new group.
-                            let group = prgs.group_builder.build();
-                            let remaining_fields = prgs.group_builder.fields(self.message_version);
-                            let remaining_required_fields =
-                                prgs.group_builder.required_fields(self.message_version);
-                            prgs.groups.push(ParseGroupState {
-                                message: group,
-                                remaining_fields: remaining_fields,
-                                remaining_required_fields: remaining_required_fields,
-                            });
+            //                 //Begin a new group.
+            //                 let group = prgs.group_builder.build();
+            //                 let remaining_fields = prgs.group_builder.fields(self.message_version);
+            //                 let remaining_required_fields =
+            //                     prgs.group_builder.required_fields(self.message_version);
+            //                 prgs.groups.push(ParseGroupState {
+            //                     message: group,
+            //                     remaining_fields: remaining_fields,
+            //                     remaining_required_fields: remaining_required_fields,
+            //                 });
 
-                            //Make sure we haven't exceeded the number of repeating
-                            //groups originally stated.
-                            if prgs.groups.len() > prgs.group_count {
-                                return Err(ParseError::RepeatingGroupTagWithNoRepeatingGroup(
-                                    self.current_tag,
-                                ));
-                            }
-                        }
+            //                 //Make sure we haven't exceeded the number of repeating
+            //                 //groups originally stated.
+            //                 if prgs.groups.len() > prgs.group_count {
+            //                     return Err(ParseError::RepeatingGroupTagWithNoRepeatingGroup(
+            //                         self.current_tag,
+            //                     ));
+            //                 }
+            //             }
 
-                        if let Some(group) = prgs.groups.last_mut() {
-                            if let Some(rule) = group.remaining_fields.remove(&self.current_tag) {
-                                //Try to mark the field as found in case it's required.
-                                group.remaining_required_fields.remove(&self.current_tag);
+            //             if let Some(group) = prgs.groups.last_mut() {
+            //                 if let Some(rule) = group.remaining_fields.remove(&self.current_tag) {
+            //                     //Try to mark the field as found in case it's required.
+            //                     group.remaining_required_fields.remove(&self.current_tag);
 
-                                //Apply parsed value to group.
-                                if let Rule::BeginGroup { .. } = rule {
-                                }
-                                //Ignore begin group tags, they will be handled below.
-                                else {
-                                    set_message_value(
-                                        &mut *group.message,
-                                        self.current_tag,
-                                        &self.current_bytes[..],
-                                    )?;
-                                }
+            //                     //Apply parsed value to group.
+            //                     if let Rule::BeginGroup { .. } = rule {
+            //                     }
+            //                     //Ignore begin group tags, they will be handled below.
+            //                     else {
+            //                         set_message_value(
+            //                             &mut *group.message,
+            //                             self.current_tag,
+            //                             &self.current_bytes[..],
+            //                         )?;
+            //                     }
 
-                                //Save rule to handle later.
-                                some_rule = Some(rule);
+            //                     //Save rule to handle later.
+            //                     some_rule = Some(rule);
 
-                                tag_in_group = true;
-                            }
-                        }
+            //                     tag_in_group = true;
+            //                 }
+            //             }
 
-                        if !tag_in_group {
-                            //Figure out if this is an error or the end of the group.
-                            if prgs
-                                .group_builder
-                                .fields(self.message_version)
-                                .contains_key(&self.current_tag)
-                            {
-                                return Err(ParseError::DuplicateTag(self.current_tag.clone()));
-                            } else if prgs.groups.len() < prgs.group_count {
-                                return Err(ParseError::NonRepeatingGroupTagInRepeatingGroup(
-                                    self.current_tag,
-                                ));
-                            }
+            //             if !tag_in_group {
+            //                 //Figure out if this is an error or the end of the group.
+            //                 if prgs
+            //                     .group_builder
+            //                     .fields(self.message_version)
+            //                     .contains_key(&self.current_tag)
+            //                 {
+            //                     return Err(ParseError::DuplicateTag(self.current_tag.clone()));
+            //                 } else if prgs.groups.len() < prgs.group_count {
+            //                     return Err(ParseError::NonRepeatingGroupTagInRepeatingGroup(
+            //                         self.current_tag,
+            //                     ));
+            //                 }
 
-                            //Make sure all required tags have been specified.
-                            prgs.check_last_group_complete(
-                                self.message_version,
-                                &mut self.missing_tag,
-                                &mut self.missing_conditional_tag,
-                            );
+            //                 //Make sure all required tags have been specified.
+            //                 prgs.check_last_group_complete(
+            //                     self.message_version,
+            //                     &mut self.missing_tag,
+            //                     &mut self.missing_conditional_tag,
+            //                 );
 
-                            //Tag does not belong in this group and all stated groups are
-                            //accounted for.
-                            group_end = true;
-                        }
-                    }
-                }
+            //                 //Tag does not belong in this group and all stated groups are
+            //                 //accounted for.
+            //                 group_end = true;
+            //             }
+            //         }
+            //     }
 
-                //Out of the way result handling to appease the borrow checker.
-                if let Some(rule) = some_rule {
-                    self.handle_rule_after_value(&rule)?;
-                }
-                if group_end {
-                    //Put repeated group into next highest repeating group. If there are no
-                    //repeating groups, put into the top-level set of tags.
-                    self.fold_top_repeating_group_down();
-                    group_end = false;
-                } else {
-                    break;
-                }
-            }
+            //     //Out of the way result handling to appease the borrow checker.
+            //     if let Some(rule) = some_rule {
+            //         self.handle_rule_after_value(&rule)?;
+            //     }
+            //     if group_end {
+            //         //Put repeated group into next highest repeating group. If there are no
+            //         //repeating groups, put into the top-level set of tags.
+            //         self.fold_top_repeating_group_down();
+            //         group_end = false;
+            //     } else {
+            //         break;
+            //     }
+            // }
 
-            if !skip_set_value && !is_message_end && !tag_in_group {
-                //Mark field as found if required so we can quickly check if all required
-                //fields were found once we are done parsing the message.
-                self.remaining_required_fields.remove(&self.current_tag);
+            // if !skip_set_value && !is_message_end && !tag_in_group {
+            //     //Mark field as found if required so we can quickly check if all required
+            //     //fields were found once we are done parsing the message.
+            //     self.remaining_required_fields.remove(&self.current_tag);
 
-                //Mark field as found so we can quickly check if a duplicate tag was
-                //encountered. As a side effect, we also handle any tag specific
-                //rules in consequence of being encountered.
-                if let Some(rule) = self.remaining_fields.remove(&self.current_tag) {
-                    skip_set_value = self.handle_rule_after_value(&rule)?;
-                } else {
-                    if self.is_current_tag_known() {
-                        let current_message_builder = self
-                            .message_dictionary
-                            .get_mut(&self.message_type[..])
-                            .unwrap();
-                        if current_message_builder
-                            .fields(self.message_version)
-                            .contains_key(&self.current_tag)
-                        {
-                            //Special case where if ApplVerID tag is encountered after the sixth
-                            //tag. This needs its own error so the correct SessionRejectReason can
-                            //be specified in a Reject message.
-                            if self.current_tag == ApplVerID::tag() {
-                                return Err(ParseError::ApplVerIDNotSixthTag);
-                            }
+            //     //Mark field as found so we can quickly check if a duplicate tag was
+            //     //encountered. As a side effect, we also handle any tag specific
+            //     //rules in consequence of being encountered.
+            //     if let Some(rule) = self.remaining_fields.remove(&self.current_tag) {
+            //         skip_set_value = self.handle_rule_after_value(&rule)?;
+            //     } else {
+            //         if self.is_current_tag_known() {
+            //             let current_message_builder = self
+            //                 .message_dictionary
+            //                 .get_mut(&self.message_type[..])
+            //                 .unwrap();
+            //             if current_message_builder
+            //                 .fields(self.message_version)
+            //                 .contains_key(&self.current_tag)
+            //             {
+            //                 //Special case where if ApplVerID tag is encountered after the sixth
+            //                 //tag. This needs its own error so the correct SessionRejectReason can
+            //                 //be specified in a Reject message.
+            //                 if self.current_tag == ApplVerID::tag() {
+            //                     return Err(ParseError::ApplVerIDNotSixthTag);
+            //                 }
 
-                            return Err(ParseError::DuplicateTag(self.current_tag.clone()));
-                        } else {
-                            return Err(ParseError::UnexpectedTag(self.current_tag.clone()));
-                        }
-                    } else {
-                        return Err(ParseError::UnknownTag(self.current_tag.clone()));
-                    }
-                }
-            }
+            //                 return Err(ParseError::DuplicateTag(self.current_tag.clone()));
+            //             } else {
+            //                 return Err(ParseError::UnexpectedTag(self.current_tag.clone()));
+            //             }
+            //         } else {
+            //             return Err(ParseError::UnknownTag(self.current_tag.clone()));
+            //         }
+            //     }
+            // }
 
-            if !is_message_end && !tag_in_group && !skip_set_value {
-                set_message_value(
-                    &mut *self.current_message,
-                    self.current_tag,
-                    &self.current_bytes[..],
-                )?;
-            }
+            // if !is_message_end && !tag_in_group && !skip_set_value {
+            //     set_message_value(
+            //         &mut *self.current_message,
+            //         self.current_tag,
+            //         &self.current_bytes[..],
+            //     )?;
+            // }
 
             if is_message_end {
                 //Make sure all required tags are specified.
-                if !self.missing_tag.is_empty() {
-                    return Err(ParseError::MissingRequiredTag(
-                        self.missing_tag,
-                        mem::replace(&mut self.current_message, Box::new(NullMessage {})),
-                    ));
-                } else if !self.missing_conditional_tag.is_empty() {
-                    return Err(ParseError::MissingConditionallyRequiredTag(
-                        self.missing_conditional_tag,
-                        mem::replace(&mut self.current_message, Box::new(NullMessage {})),
-                    ));
-                }
+                // if !self.missing_tag.is_empty() {
+                //     return Err(ParseError::MissingRequiredTag(
+                //         self.missing_tag,
+                //         mem::replace(&mut self.current_message, Box::new(NullMessage {})),
+                //     ));
+                // } else if !self.missing_conditional_tag.is_empty() {
+                //     return Err(ParseError::MissingConditionallyRequiredTag(
+                //         self.missing_conditional_tag,
+                //         mem::replace(&mut self.current_message, Box::new(NullMessage {})),
+                //     ));
+                // }
 
-                if let Some(tag) = self.remaining_required_fields.iter().next() {
-                    return Err(ParseError::MissingRequiredTag(
-                        *tag,
-                        mem::replace(&mut self.current_message, Box::new(NullMessage {})),
-                    ));
-                }
+                // if let Some(tag) = self.remaining_required_fields.iter().next() {
+                //     return Err(ParseError::MissingRequiredTag(
+                //         *tag,
+                //         mem::replace(&mut self.current_message, Box::new(NullMessage {})),
+                //     ));
+                // }
 
-                for tag in self
-                    .current_message
-                    .conditional_required_fields(self.message_version)
-                {
-                    if self.remaining_fields.contains_key(&tag) {
-                        return Err(ParseError::MissingConditionallyRequiredTag(
-                            tag,
-                            mem::replace(&mut self.current_message, Box::new(NullMessage {})),
-                        ));
-                    }
-                }
+                // for tag in self
+                //     .current_message
+                //     .conditional_required_fields(self.message_version)
+                // {
+                //     if self.remaining_fields.contains_key(&tag) {
+                //         return Err(ParseError::MissingConditionallyRequiredTag(
+                //             tag,
+                //             mem::replace(&mut self.current_message, Box::new(NullMessage {})),
+                //         ));
+                //     }
+                // }
 
                 //Store meta info about the message. Mainly for debugging.
-                self.current_message.set_meta(Meta {
-                    begin_string: self.fix_version,
-                    body_length: self.body_length,
-                    message_version: self.message_version,
-                    checksum: self.checksum,
-                });
+                // self.current_message.set_meta(Meta {
+                //     begin_string: self.fix_version,
+                //     body_length: self.body_length,
+                //     message_version: self.message_version,
+                //     checksum: self.checksum,
+                // });
 
                 //Save message.
-                let is_logon_message = self.current_message.msg_type() == Logon::msg_type();
+                let is_logon_message = self.message_type == Logon::msg_type();
                 // self.messages.push(mem::replace(
                 //     &mut self.current_message,
                 //     Box::new(NullMessage {}),
@@ -1275,11 +1290,11 @@ impl Parser {
                     log::debug!("Parsed message contents: {}|", tag_strings.join("|"));
                 }
 
-                let ty = match self.message_dictionary.get(&self.message_type[..]) {
-                    Some(ty) => ty,
-                    None => panic!("message type missing: {}", unsafe { std::str::from_utf8_unchecked(&self.message_type[..]) })
+                let message = match self.message_dictionary.get(&self.message_type[..]) {
+                    Some(ty) => ty.build_from_tags(&collected_tags, self.default_message_version),
+                    None => Box::new(UnrecognisedMessage::new(&collected_tags, self.default_message_version)),
                 };
-                self.messages.push(ty.build_from_tags(&collected_tags, self.default_message_version));
+                self.messages.push(message);
                 //Prepare for the next message.
                 collected_tags.clear();
                 self.reset_parser();
