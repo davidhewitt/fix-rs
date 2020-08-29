@@ -3,8 +3,11 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::Path;
 
-use heck::SnakeCase;
-use serde::{Deserialize, Deserializer, de::{self, Visitor}};
+use heck::{CamelCase, SnakeCase};
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer,
+};
 use serde_xml_rs::from_str;
 
 use thiserror::Error;
@@ -25,14 +28,14 @@ struct FixXmlSchema {
 #[serde(deny_unknown_fields)]
 struct FixHeaderSchema {
     #[serde(rename = "$value")]
-    items: Vec<FixItemSchema>
+    items: Vec<FixItemSchema>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 struct FixMessagesSchema {
     #[serde(rename = "message")]
-    messages: Vec<FixMessageSchema>
+    messages: Vec<FixMessageSchema>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -42,14 +45,14 @@ struct FixMessageSchema {
     msgtype: String,
     msgcat: FixMessageCategory,
     #[serde(rename = "$value")]
-    items: Vec<FixItemSchema>
+    items: Vec<FixItemSchema>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 struct FixTrailerSchema {
     #[serde(rename = "$value")]
-    items: Vec<FixItemSchema>
+    items: Vec<FixItemSchema>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -57,14 +60,14 @@ struct FixTrailerSchema {
 struct FixFieldSchema {
     name: String,
     #[serde(deserialize_with = "from_y_n")]
-    required: bool
+    required: bool,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 struct FixComponentsSchema {
     #[serde(rename = "component")]
-    components: Vec<FixComponentDefinition>
+    components: Vec<FixComponentDefinition>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -72,14 +75,14 @@ struct FixComponentsSchema {
 struct FixComponentDefinition {
     name: String,
     #[serde(rename = "$value")]
-    items: Vec<FixItemSchema>
+    items: Vec<FixItemSchema>,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 struct FixFieldsSchema {
     #[serde(rename = "field")]
-    fields: Vec<FixFieldDefinition>
+    fields: Vec<FixFieldDefinition>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -108,7 +111,7 @@ struct FixFieldValue {
 struct FixComponentSchema {
     name: String,
     #[serde(deserialize_with = "from_y_n")]
-    required: bool
+    required: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -118,7 +121,7 @@ struct FixGroupSchema {
     #[serde(deserialize_with = "from_y_n")]
     required: bool,
     #[serde(rename = "$value")]
-    items: Vec<FixItemSchema>
+    items: Vec<FixItemSchema>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -137,7 +140,8 @@ enum FixMessageCategory {
 }
 
 fn from_y_n<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where D: Deserializer<'de>
+where
+    D: Deserializer<'de>,
 {
     struct YesNoVisitor;
     impl<'de> Visitor<'de> for YesNoVisitor {
@@ -151,7 +155,7 @@ where D: Deserializer<'de>
             match s {
                 "y" | "Y" => Ok(true),
                 "n" | "N" => Ok(false),
-                _ => Err(de::Error::invalid_value(de::Unexpected::Str(s), &self))
+                _ => Err(de::Error::invalid_value(de::Unexpected::Str(s), &self)),
             }
         }
     }
@@ -168,6 +172,25 @@ pub enum GenerateError {
     XmlError(#[from] serde_xml_rs::Error),
 }
 
+fn field_type(ty: &str) -> String {
+    let ty = match ty {
+        "LOCALMKTDATE" => "LOCAL_MKT_DATE",
+        "MONTHYEAR" => "MONTH_YEAR",
+        "UTCDATEONLY" => "UTC_DATE_ONLY",
+        "UTCTIMEONLY" => "UTC_TIME_ONLY",
+        "UTCTIMESTAMP" => "UTC_TIMESTAMP",
+        "SEQNUM" => "SEQ_NUM",
+
+        // FIXME: these are hacks
+        "PRICE" | "PRICEOFFSET" | "BOOLEAN" | "PERCENTAGE" | "NUMINGROUP" | "AMT" | "QTY"
+        | "FLOAT" | "INT" | "MULTIPLEVALUESTRING" | "EXCHANGE" => "STRING",
+
+        other => other,
+    };
+
+    ty.to_camel_case()
+}
+
 pub fn generate_dictionary<P: AsRef<Path>>(src: P, dest: P) -> Result<(), GenerateError> {
     let mut file_contents = String::new();
     File::open(src)
@@ -180,30 +203,30 @@ pub fn generate_dictionary<P: AsRef<Path>>(src: P, dest: P) -> Result<(), Genera
     let schema: FixXmlSchema = from_str(&file_contents)?;
 
     f.write(
-r#"use fix_rs::field::Field;
+        r#"use fix_rs::field::Field;
 use fix_rs::field_tag::{self, FieldTag};
 use fix_rs::field_type::FieldType;
-use fix_rs::fix_version::FIXVersion;
-use fix_rs::fix::{self, parse_meta};
 use fix_rs::fixt;
-use fix_rs::dictionary::field_types::generic::StringFieldType;
-use fix_rs::fixt::message::{FIXTMessage, TagValue};
+use fix_rs::fixt::message::FIXTMessage;
 use fix_rs::message::{self, Message, Meta, SetValueError, NOT_REQUIRED, REQUIRED};
 use fix_rs::message_version::{self, MessageVersion};
-use fix_rs::{define_fields, define_fixt_message, define_dictionary};"#.as_bytes()
+use fix_rs::{define_fields, define_fixt_message, define_dictionary};"#
+            .as_bytes(),
     )?;
 
     writeln!(f)?;
 
     writeln!(f, "pub mod fields {{")?;
+    writeln!(f, "use fix_rs::dictionary::field_types::generic::*;")?;
     writeln!(f, "use super::*;")?;
     writeln!(f, "define_fields!(")?;
 
     for field in &schema.fields.fields {
         writeln!(
             f,
-            "    {}: StringFieldType = {},",
+            "    {}: {}FieldType = {},",
             field.name,
+            field_type(&field.ty),
             field.number
         )?;
     }
@@ -221,7 +244,11 @@ use fix_rs::{define_fields, define_fixt_message, define_dictionary};"#.as_bytes(
             f,
             r#"define_fixt_message!({}: {} b"{}" => {{"#,
             message.name,
-            if message.msgcat == FixMessageCategory::Admin { "ADMIN" } else { "" },
+            if message.msgcat == FixMessageCategory::Admin {
+                "ADMIN"
+            } else {
+                ""
+            },
             message.msgtype
         )?;
 
@@ -231,11 +258,15 @@ use fix_rs::{define_fields, define_fixt_message, define_dictionary};"#.as_bytes(
                     writeln!(
                         f,
                         "    {}, {}: {} [FIX44..],",
-                        if field.required { "REQUIRED" } else { "NOT_REQUIRED" },
+                        if field.required {
+                            "REQUIRED"
+                        } else {
+                            "NOT_REQUIRED"
+                        },
                         field.name.to_snake_case(),
                         field.name
                     )?;
-                },
+                }
                 _ => {} // FIXME: Groups and Components
             }
         }

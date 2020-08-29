@@ -378,7 +378,7 @@ define_enum_field_type!(
 //Currency and codes are from https://en.wikipedia.org/wiki/ISO_4217
 //Last updated: 2016-12-27.
 define_enum_field_type!(
-    FIELD Currency {
+    FIELD CurrencyValue {
         UnitedArabEmiratesDirham => b"AED",
         AfghanAfghani => b"AFN",
         AlbanianLek => b"ALL",
@@ -1048,13 +1048,7 @@ pub struct UtcTimeOnlyFieldType;
 
 impl UtcTimeOnlyFieldType {
     pub fn new_now() -> <UtcTimeOnlyFieldType as FieldType>::Type {
-        let spec = ::time::get_time();
-
-        let hours = spec.sec % (24 * 60 * 60);
-        let minutes = spec.sec % (60 * 60);
-        let seconds = spec.sec % 60;
-
-        NaiveTime::from_hms(hours as u32, minutes as u32, seconds as u32)
+        Utc::now().naive_utc().time()
     }
 }
 
@@ -1105,6 +1099,47 @@ impl FieldType for UtcTimeOnlyFieldType {
         buf: &mut Vec<u8>,
     ) -> usize {
         let value_string = field.format("%T%.3f").to_string();
+        buf.write(value_string.as_bytes()).unwrap()
+    }
+}
+
+pub struct UtcDateOnlyFieldType;
+
+impl UtcDateOnlyFieldType {
+    pub fn new_now() -> <UtcDateOnlyFieldType as FieldType>::Type {
+        chrono::Utc::today().naive_utc()
+    }
+}
+
+impl FieldType for UtcDateOnlyFieldType {
+    type Type = NaiveDate;
+
+    fn default_value() -> Self::Type {
+        UtcDateOnlyFieldType::new_now()
+    }
+
+    fn set_value(field: &mut Self::Type, bytes: &[u8]) -> Result<(), SetValueError> {
+        *field = NaiveDate::parse_from_str(&String::from_utf8_lossy(bytes), "%Y%m%d")
+            .map_err(|_| SetValueError::WrongFormat)?;
+
+        Ok(())
+    }
+
+    fn is_empty(_field: &Self::Type) -> bool {
+        false //Always required.
+    }
+
+    fn len(_field: &Self::Type) -> usize {
+        0
+    }
+
+    fn read(
+        field: &Self::Type,
+        _fix_version: FIXVersion,
+        _message_version: MessageVersion,
+        buf: &mut Vec<u8>,
+    ) -> usize {
+        let value_string = field.format("%Y%m%d").to_string();
         buf.write(value_string.as_bytes()).unwrap()
     }
 }

@@ -53,21 +53,23 @@ pub trait FIXTMessage: Message {
 
 impl fmt::Debug for dyn FIXTMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            Message::debug(self, FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2)
-        )
+        let (fix_ver, msg_ver) = self
+            .meta()
+            .as_ref()
+            .map(|m| (m.begin_string, m.message_version))
+            .unwrap_or((FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2));
+        write!(f, "{}", Message::debug(self, fix_ver, msg_ver))
     }
 }
 
 impl fmt::Debug for dyn FIXTMessage + Send {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            Message::debug(self, FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2)
-        )
+        let (fix_ver, msg_ver) = self
+            .meta()
+            .as_ref()
+            .map(|m| (m.begin_string, m.message_version))
+            .unwrap_or((FIXVersion::FIXT_1_1, MessageVersion::FIX50SP2));
+        write!(f, "{}", Message::debug(self, fix_ver, msg_ver))
     }
 }
 
